@@ -1,0 +1,27 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: daya-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: daya
+      MYSQL_DATABASE: dayacares
+      MYSQL_USER: daya
+      MYSQL_PASSWORD: daya
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - daya-mysql:/var/lib/mysql
+      - ./services/vitals-api/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./services/vitals-api/sql/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./services/vitals-api/sql/04-scheduling.sql:/docker-entrypoint-initdb.d/04-scheduling.sql:ro
+      - ./services/vitals-api/sql/05-billing-sos.sql:/docker-entrypoint-initdb.d/05-billing-sos.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-udaya", "-pdaya"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  daya-mysql:

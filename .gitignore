@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.expo/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+coverage/
+.aws-sam/
+.serverless/
+apps/mobile/ios/
+apps/mobile/android/
+~$*
+*.tmp
+Thumbs.db

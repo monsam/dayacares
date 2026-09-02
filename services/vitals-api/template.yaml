@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Daya Cares Health Visit Logs API (MySQL + optional SNS)
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 15
+    MemorySize: 256
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        MYSQL_HOST: !Ref MysqlHost
+        MYSQL_PORT: !Ref MysqlPort
+        MYSQL_USER: !Ref MysqlUser
+        MYSQL_PASSWORD: !Ref MysqlPassword
+        MYSQL_DATABASE: !Ref MysqlDatabase
+        SNS_ANDROID_PLATFORM_ARN: !Ref AndroidPlatformArn
+        SNS_IOS_PLATFORM_ARN: !Ref IosPlatformArn
+        SNS_OPS_TOPIC_ARN: !Ref OpsAlertTopic
+        SNS_WHATSAPP_TOPIC_ARN: !Ref WhatsAppTopic
+
+Parameters:
+  MysqlHost:
+    Type: String
+  MysqlPort:
+    Type: String
+    Default: "3306"
+  MysqlUser:
+    Type: String
+    Default: daya
+  MysqlPassword:
+    Type: String
+    NoEcho: true
+  MysqlDatabase:
+    Type: String
+    Default: dayacares
+  AndroidPlatformArn:
+    Type: String
+    Default: ""
+  IosPlatformArn:
+    Type: String
+    Default: ""
+
+Resources:
+  CreateHealthVisitLogFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/handlers/createHealthVisitLog.handler
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt OpsAlertTopic.TopicName
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt WhatsAppTopic.TopicName
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /health-visit-logs
+            Method: post
+            Auth:
+              Authorizer: NONE
+
+  OpsAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: daya-ops-visit-alerts
+      DisplayName: Daya Ops Visit Alerts
+
+  WhatsAppTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: daya-whatsapp-visit-alerts
+      DisplayName: Daya WhatsApp Visit Alerts

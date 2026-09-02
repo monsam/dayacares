@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Daya Cares",
+    "slug": "daya-cares",
+    "scheme": "dayacares",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E8F3FA"
+    },
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.dayacares.app"
+    },
+    "android": {
+      "package": "org.dayacares.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Daya Cares uses photos to attach visit and prescription records.",
+          "cameraPermission": "Daya Cares uses the camera to photograph visit documents."
+        }
+      ]
+    ]
+  }
+}

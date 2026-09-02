@@ -1,0 +1,22 @@
+{
+  "name": "daya-cares",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Daya Cares elderly care and health monitoring platform",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:up": "docker compose up -d mysql",
+    "db:down": "docker compose down",
+    "db:seed": "mysql -udaya -pdaya dayacares < services/vitals-api/sql/02-seed.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/04-scheduling.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/05-billing-sos.sql",
+    "api:dev": "npm run dev -w @daya/vitals-api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

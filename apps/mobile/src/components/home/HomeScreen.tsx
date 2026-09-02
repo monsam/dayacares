@@ -1,0 +1,458 @@
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { useEffect, type ReactNode } from "react";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import type { HomeSummaryResponse, HomeVisitSummary } from "@daya/shared";
+import { getHomeSummary } from "../../api/home";
+import { createSos } from "../../api/sos";
+import { ROLE_LABEL, useAuth } from "../../auth/AuthContext";
+import { apiErrorMessage, formatVisitTime, visitTypeLabel } from "../../lib/scheduleDisplay";
+import { formatVitalsLine } from "../../lib/visitDisplay";
+import { fontFamily } from "../../theme/tokens";
+import { Button } from "../../ui/Button";
+import { chromeForAccount, type HomeFeedItem } from "./roleHome";
+
+const logo = require("../../../assets/logo.png");
+
+export function HomeScreen() {
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 960;
+  const { session, ready, signOut } = useAuth();
+  const queryClient = useQueryClient();
+
+  const summary = useQuery({
+    queryKey: ["home", session?.username],
+    queryFn: getHomeSummary,
+    enabled: Boolean(session),
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (ready && !session) {
+      router.replace("/");
+    }
+  }, [ready, session, router]);
+
+  if (!session) {
+    return null;
+  }
+
+  const home = chromeForAccount(session);
+  const feed = feedFromSummary(summary.data, session.role);
+
+  const onAction = (route: string) => {
+    if (route === "sos") {
+      Alert.alert(
+        "Emergency SOS",
+        "This will alert the DAYA Cares Durgapur team and the linked Care Family.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Send SOS",
+            style: "destructive",
+            onPress: () => {
+              createSos({
+                customer_id: summary.data?.customers[0]?.customer_id,
+                severity: "SOS",
+              })
+                .then((incident) => {
+                  queryClient.invalidateQueries({ queryKey: ["home"] });
+                  queryClient.invalidateQueries({ queryKey: ["sos"] });
+                  Alert.alert(
+                    "SOS sent",
+                    `${incident.customer_name ?? "The centre"} is on the emergency board.`,
+                  );
+                })
+                .catch((err) => {
+                  Alert.alert("Could not send SOS", apiErrorMessage(err, "Is the API running?"));
+                });
+            },
+          },
+        ],
+      );
+      return;
+    }
+    router.push(route);
+  };
+
+  return (
+    <View style={styles.root}>
+      <View style={styles.header}>
+        <Image source={logo} style={styles.headerLogo} resizeMode="contain" accessibilityLabel="DAYA CARES" />
+        <View style={styles.headerRight}>
+          <Text style={styles.roleChip}>{ROLE_LABEL[session.role]}</Text>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{home.avatar}</Text>
+          </View>
+          <Pressable onPress={() => { signOut(); router.replace("/"); }} accessibilityRole="button">
+            <Text style={styles.signOut}>Sign out</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.hero}>
+          <View style={[styles.wave, styles.waveTop]} />
+          <View style={[styles.wave, styles.waveBottom]} />
+          <Text style={styles.welcome}>{home.greeting}</Text>
+          <Text style={styles.welcomeSub}>{home.subtitle}</Text>
+          <View style={[styles.actionRow, !isWide && styles.actionRowWrap]}>
+            {home.actions.map((action) => (
+              <Pressable
+                key={action.key}
+                onPress={() => onAction(action.route)}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}
+              >
+                <Ionicons name={action.icon} size={28} color="#0057B8" />
+                <Text style={styles.actionLabel}>{action.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={[styles.body, isWide ? styles.bodyWide : styles.bodyNarrow]}>
+          <View style={styles.feed}>
+            <View style={styles.feedCard}>
+              {summary.isLoading ? (
+                <Text style={styles.empty}>Loading updates from MySQL…</Text>
+              ) : summary.isError ? (
+                <Text style={styles.empty}>Could not load home data. Start the API with npm run api:dev.</Text>
+              ) : (
+                feed.map((item, index) => (
+                  <View key={`${item.title}-${index}`}>
+                    {index > 0 ? <View style={styles.divider} /> : null}
+                    <FeedRow
+                      icon={<FeedIcon name={item.icon} />}
+                      kicker={item.kicker}
+                      title={item.title}
+                      body={item.body}
+                      primary={item.primary}
+                      secondary={item.secondary}
+                      onPrimary={() => onAction(item.primaryRoute)}
+                      onSecondary={item.secondaryRoute ? () => onAction(item.secondaryRoute!) : undefined}
+                    />
+                  </View>
+                ))
+              )}
+              <Pressable
+                style={styles.viewAll}
+                accessibilityRole="link"
+                onPress={() => onAction("/visits")}
+              >
+                <Ionicons name="shield-checkmark" size={16} color="#0057B8" />
+                <Text style={styles.viewAllText}>View all visit history</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.sidebar}>
+            <Text style={styles.sidebarTitle}>{home.sidebarTitle}</Text>
+            {(summary.data?.team ?? []).map((person) => (
+              <View key={person.user_id} style={styles.person}>
+                <View style={styles.personAvatar}>
+                  <Text style={styles.personInitials}>{person.initials}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.personName}>{person.name}</Text>
+                  <Text style={styles.personRole}>{person.role_label}</Text>
+                </View>
+              </View>
+            ))}
+            {summary.data && summary.data.team.length === 0 ? (
+              <Text style={styles.empty}>No linked people in MySQL yet.</Text>
+            ) : null}
+            <Pressable accessibilityRole="link" onPress={() => onAction(home.sidebarRoute)}>
+              <Text style={styles.sidebarLink}>{home.sidebarLink}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function visitRoute(visit: HomeVisitSummary) {
+  return `/visits/${visit.log.log_id}`;
+}
+
+function feedFromSummary(
+  summary: HomeSummaryResponse | undefined,
+  role: string,
+): HomeFeedItem[] {
+  if (!summary) return [];
+
+  const scheduleRoute = role === "ADMIN" ? "/admin/schedule" : role === "WORKER" ? "/worker/schedule" : "/visits";
+  const items: HomeFeedItem[] = [
+    {
+      icon: "users",
+      kicker: "Care Focus",
+      title:
+        summary.customers.length === 1
+          ? summary.customers[0].name
+          : `${summary.customers.length} people on this account`,
+      body:
+        summary.customers.length === 0
+          ? "No Care Focus records in MySQL for this login."
+          : summary.customers.map((customer) => `${customer.name} · ${customer.address}`).join("\n"),
+      primary: role === "WORKER" ? "Open list" : "View history",
+      primaryRoute: role === "WORKER" ? "/worker/clients" : "/visits",
+    },
+  ];
+
+  if (summary.open_sos?.length) {
+    const first = summary.open_sos[0];
+    items.unshift({
+      icon: "alert",
+      kicker: "Emergencies",
+      title: `${first.customer_name ?? "SOS"} · ${first.status}`,
+      body: summary.open_sos
+        .map((incident) => `${incident.customer_name ?? "SOS"} · ${incident.severity} · ${incident.status}`)
+        .join("\n"),
+      primary: role === "ADMIN" ? "Open emergencies" : "View history",
+      primaryRoute: role === "ADMIN" ? "/admin/emergencies" : "/visits",
+    });
+  }
+
+  if (summary.schedules?.length) {
+    const next = summary.schedules[0];
+    items.unshift({
+      icon: "calendar",
+      kicker: "Upcoming visits",
+      title: `${formatVisitTime(next.scheduled_for)} · ${next.customer_name}`,
+      body: summary.schedules
+        .map(
+          (visit) =>
+            `${formatVisitTime(visit.scheduled_for)} ${visit.customer_name} · ${visitTypeLabel(visit.visit_type)} · ${visit.worker_name}`,
+        )
+        .join("\n"),
+      primary: role === "WORKER" ? "Open today's route" : "Open schedule",
+      primaryRoute: scheduleRoute,
+    });
+  }
+
+  if (summary.logs.length === 0) {
+    items.push({
+      icon: "ok",
+      kicker: "Updates",
+      title: "No visit logs yet",
+      body: "New vitals will appear here after a Care Giver submits a visit.",
+      primary: role === "WORKER" ? "Start a visit" : "View history",
+      primaryRoute: role === "WORKER" ? "/worker/clients" : "/visits",
+    });
+    return items;
+  }
+
+  for (const visit of summary.logs) {
+    const when = new Date(visit.log.visit_timestamp).toLocaleString();
+    items.push({
+      icon: "health",
+      kicker: visit.customer_name,
+      title: formatVitalsLine(visit.log.vitals_payload),
+      body: `Recorded by ${visit.worker_name} on ${when}.`,
+      primary: "View details",
+      primaryRoute: visitRoute(visit),
+    });
+  }
+
+  return items;
+}
+
+function FeedIcon({ name }: { name: HomeFeedItem["icon"] }) {
+  if (name === "ok") return <Ionicons name="checkmark-circle" size={28} color="#2E9E6B" />;
+  if (name === "calendar") return <Ionicons name="calendar" size={26} color="#0057B8" />;
+  if (name === "health") return <MaterialCommunityIcons name="heart-pulse" size={26} color="#E53935" />;
+  if (name === "billing") return <Ionicons name="card" size={26} color="#2E9E6B" />;
+  if (name === "users") return <Ionicons name="people" size={26} color="#0057B8" />;
+  return <Ionicons name="alert-circle" size={26} color="#E53935" />;
+}
+
+function FeedRow({
+  icon,
+  kicker,
+  title,
+  body,
+  primary,
+  secondary,
+  onPrimary,
+  onSecondary,
+}: {
+  icon: ReactNode;
+  kicker: string;
+  title: string;
+  body: string;
+  primary: string;
+  secondary?: string;
+  onPrimary: () => void;
+  onSecondary?: () => void;
+}) {
+  return (
+    <View style={styles.feedRow}>
+      <View style={styles.feedIcon}>{icon}</View>
+      <View style={styles.feedCopy}>
+        <Text style={styles.feedKicker}>{kicker}</Text>
+        <Text style={styles.feedTitle}>{title}</Text>
+        <Text style={styles.feedBody}>{body}</Text>
+      </View>
+      <View style={styles.feedActions}>
+        <Button label={primary} size="compact" onPress={onPrimary} />
+        {secondary ? (
+          <Button label={secondary} size="compact" variant="secondary" onPress={onSecondary ?? onPrimary} />
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#F3F7FB" },
+  header: {
+    minHeight: 56,
+    backgroundColor: "#003B70",
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerLogo: { width: 220, height: 40 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
+  roleChip: { fontFamily, color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#2F80ED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: "#FFFFFF", fontFamily, fontWeight: "700", fontSize: 13 },
+  signOut: { fontFamily, color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
+  scroll: { paddingBottom: 40 },
+  hero: {
+    backgroundColor: "#E3F0FA",
+    paddingTop: 28,
+    paddingBottom: 32,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  wave: {
+    position: "absolute",
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.45)",
+  },
+  waveTop: { width: 520, height: 160, top: -80, left: -80 },
+  waveBottom: { width: 640, height: 180, bottom: -100, right: -120 },
+  welcome: {
+    fontFamily,
+    fontSize: 28,
+    fontWeight: "600",
+    color: "#1A2B4C",
+  },
+  welcomeSub: {
+    fontFamily,
+    fontSize: 15,
+    color: "#5B6775",
+    marginTop: 4,
+    marginBottom: 22,
+  },
+  actionRow: {
+    width: "100%",
+    maxWidth: 980,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 14,
+  },
+  actionRowWrap: { flexWrap: "wrap" },
+  actionTile: {
+    width: 132,
+    minHeight: 108,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 8,
+    shadowColor: "#1A2B4C",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  actionLabel: {
+    fontFamily,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1A2B4C",
+    textAlign: "center",
+  },
+  pressed: { opacity: 0.86 },
+  body: {
+    width: "100%",
+    maxWidth: 1180,
+    alignSelf: "center",
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    gap: 20,
+  },
+  bodyWide: { flexDirection: "row", alignItems: "flex-start" },
+  bodyNarrow: { flexDirection: "column" },
+  feed: { flex: 2 },
+  feedCard: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D5DEE7",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  feedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+  },
+  feedIcon: { width: 36, alignItems: "center" },
+  feedCopy: { flex: 1, minWidth: 0 },
+  feedKicker: { fontFamily, fontSize: 13, color: "#5B6775", marginBottom: 2 },
+  feedTitle: { fontFamily, fontSize: 18, fontWeight: "700", color: "#1A2B4C" },
+  feedBody: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775", marginTop: 4 },
+  feedActions: { width: 168, gap: 8 },
+  divider: { height: 1, backgroundColor: "#E4EAF1" },
+  viewAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 14,
+  },
+  viewAllText: { fontFamily, fontSize: 14, fontWeight: "600", color: "#0057B8" },
+  sidebar: {
+    flex: 1,
+    minWidth: 280,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D5DEE7",
+    borderRadius: 8,
+    padding: 18,
+    gap: 14,
+  },
+  sidebarTitle: { fontFamily, fontSize: 16, fontWeight: "700", color: "#1A2B4C" },
+  person: { flexDirection: "row", alignItems: "center", gap: 10 },
+  personAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#E8F1FB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  personInitials: { fontFamily, fontSize: 13, fontWeight: "700", color: "#0057B8" },
+  personName: { fontFamily, fontSize: 15, fontWeight: "700", color: "#1A2B4C" },
+  personRole: { fontFamily, fontSize: 13, color: "#5B6775" },
+  sidebarLink: { fontFamily, fontSize: 14, fontWeight: "600", color: "#0057B8", marginTop: 4 },
+  empty: { fontFamily, fontSize: 14, color: "#5B6775", paddingHorizontal: 20, paddingVertical: 18 },
+});
