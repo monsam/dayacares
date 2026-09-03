@@ -29,7 +29,7 @@ export function Chip({
         },
       ]}
     >
-      <Text style={{ color: selected ? colors.white : colors.blue, fontFamily, fontSize: 16, fontWeight: "700" }}>
+      <Text style={{ color: selected ? colors.white : colors.blue, fontFamily, fontSize: 16, fontWeight: "600" }}>
         {label}
       </Text>
     </Pressable>
@@ -37,5 +37,5 @@ export function Chip({
 }
 
 const styles = StyleSheet.create({
-  chip: { borderWidth: 2, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  chip: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 8 },
 });

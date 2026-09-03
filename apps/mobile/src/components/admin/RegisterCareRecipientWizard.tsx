@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import type { CareRecipientRegistration, RegistrationContact } from "@daya/shared";
 import { createCareRecipient, listWorkers } from "../../api/customers";
 import { useAuth } from "../../auth/AuthContext";
@@ -9,6 +9,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import { fontFamily, space, type } from "../../theme/tokens";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
+import { FORM_MAX, PageShell } from "../../ui/Page";
 import { TextField } from "../../ui/TextField";
 
 const STEPS = [
@@ -119,15 +120,7 @@ export function RegisterCareRecipientWizard() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/admin/members")} accessibilityRole="button">
-          <Text style={styles.navBack}>Back</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Register</Text>
-        <View style={{ width: 56 }} />
-      </View>
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell title="Register" backTo="/admin/members" backLabel="Members" maxWidth={FORM_MAX}>
         <Text style={[styles.kicker, { color: colors.blue }]}>Care Recipient Registration Form</Text>
         <Text style={[styles.title, { color: colors.ink }]}>{STEPS[step]}</Text>
         <Text style={[styles.progress, { color: colors.inkMuted }]}>
@@ -184,8 +177,7 @@ export function RegisterCareRecipientWizard() {
             />
           )}
         </View>
-      </ScrollView>
-    </View>
+    </PageShell>
   );
 }
 
@@ -502,16 +494,6 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 48 },
   kicker: { fontFamily, fontSize: 16, fontWeight: "800" },
   title: { fontFamily, fontSize: type.title, fontWeight: "800" },
   progress: { fontFamily, fontSize: 16 },

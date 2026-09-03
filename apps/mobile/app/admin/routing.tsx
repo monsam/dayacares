@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { RoutedMember, WorkerCaseload } from "@daya/shared";
 import { assignWorker, getRoutingBoard, unassignWorker } from "../../src/api/routing";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiErrorMessage } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
-import { fontFamily, space, type } from "../../src/theme/tokens";
+import { fontFamily, type } from "../../src/theme/tokens";
 import { Card } from "../../src/ui/Card";
 import { Chip } from "../../src/ui/Chip";
+import { CardGrid, PageShell } from "../../src/ui/Page";
 
 export default function WorkerRoutingScreen() {
   const { colors } = useTheme();
@@ -58,18 +59,14 @@ export default function WorkerRoutingScreen() {
   const busy = assign.isPending || remove.isPending;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
-          <Text style={styles.navBack}>Home</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Routing</Text>
-        <View style={{ width: 56 }} />
-      </View>
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell
+      title="Routing"
+      lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
           Assign Care Givers to Care Recipients. Address is the route hint for the day’s schedule.
         </Text>
+      }
+    >
         <Pressable onPress={() => router.push("/admin/schedule")} accessibilityRole="button">
           <Text style={[styles.link, { color: colors.blue }]}>Open Scheduling →</Text>
         </Pressable>
@@ -97,30 +94,31 @@ export default function WorkerRoutingScreen() {
           </Card>
         ) : null}
 
-        {board?.workers.map((worker) => (
-          <Card key={worker.user_id} style={styles.card}>
-            <Text style={[styles.heading, { color: colors.ink }]}>{worker.name}</Text>
-            <Text style={[styles.meta, { color: colors.blue }]}>
-              {worker.members.length} on caseload
-              {worker.members.length ? ` · ${routeHint(worker.members)}` : ""}
-            </Text>
-            {worker.members.length === 0 ? (
-              <Text style={[styles.meta, { color: colors.inkMuted }]}>No members routed to this Care Giver yet.</Text>
-            ) : null}
-            {worker.members.map((member) => (
-              <MemberRow
-                key={`${worker.user_id}-${member.customer_id}`}
-                member={member}
-                workers={board.workers}
-                busy={busy}
-                onAssign={(workerId) => assign.mutate({ workerId, customerId: member.customer_id })}
-                onRemove={member.allocation_id ? () => remove.mutate(member.allocation_id as string) : undefined}
-              />
-            ))}
-          </Card>
-        ))}
-      </ScrollView>
-    </View>
+        <CardGrid>
+          {board?.workers.map((worker) => (
+            <Card key={worker.user_id} style={styles.card}>
+              <Text style={[styles.heading, { color: colors.ink }]}>{worker.name}</Text>
+              <Text style={[styles.meta, { color: colors.blue }]}>
+                {worker.members.length} on caseload
+                {worker.members.length ? ` · ${routeHint(worker.members)}` : ""}
+              </Text>
+              {worker.members.length === 0 ? (
+                <Text style={[styles.meta, { color: colors.inkMuted }]}>No members routed to this Care Giver yet.</Text>
+              ) : null}
+              {worker.members.map((member) => (
+                <MemberRow
+                  key={`${worker.user_id}-${member.customer_id}`}
+                  member={member}
+                  workers={board.workers}
+                  busy={busy}
+                  onAssign={(workerId) => assign.mutate({ workerId, customerId: member.customer_id })}
+                  onRemove={member.allocation_id ? () => remove.mutate(member.allocation_id as string) : undefined}
+                />
+              ))}
+            </Card>
+          ))}
+        </CardGrid>
+    </PageShell>
   );
 }
 
@@ -176,16 +174,6 @@ function MemberRow({
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 40 },
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
   link: { fontFamily, fontSize: 16, fontWeight: "700" },
   card: { gap: 10 },

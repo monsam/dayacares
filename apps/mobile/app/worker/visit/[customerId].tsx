@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { Text } from "react-native";
 import { getCustomer } from "../../../src/api/customers";
 import { useAuth } from "../../../src/auth/AuthContext";
 import { GuidedVitalsForm } from "../../../src/components/vitals/GuidedVitalsForm";
 import { useTheme } from "../../../src/theme/ThemeContext";
-import { fontFamily } from "../../../src/theme/tokens";
+import { PageChrome } from "../../../src/ui/Page";
 
 export default function VisitScreen() {
   const { colors } = useTheme();
-  const router = useRouter();
   const { session } = useAuth();
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
   const id = customerId ?? "";
@@ -21,25 +20,7 @@ export default function VisitScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View
-        style={{
-          minHeight: 56,
-          backgroundColor: colors.navy,
-          paddingHorizontal: 20,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
-          <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "600", fontFamily, width: 56 }}>
-            Home
-          </Text>
-        </Pressable>
-        <Text style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "800", fontFamily }}>Home visit</Text>
-        <View style={{ width: 56 }} />
-      </View>
+    <PageChrome>
       {query.isLoading ? (
         <Text style={{ padding: 24, color: colors.inkMuted }}>Loading Care Focus…</Text>
       ) : null}
@@ -57,6 +38,6 @@ export default function VisitScreen() {
           plan={query.data.plan}
         />
       ) : null}
-    </View>
+    </PageChrome>
   );
 }

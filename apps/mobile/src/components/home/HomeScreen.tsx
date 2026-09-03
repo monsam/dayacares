@@ -2,26 +2,25 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import type { HomeSummaryResponse, HomeVisitSummary } from "@daya/shared";
 import { getHomeSummary } from "../../api/home";
 import { createSos } from "../../api/sos";
-import { ROLE_LABEL, useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/AuthContext";
 import { caregiverEmails, openCaregiverMailto } from "../../lib/messageEmail";
 import { apiErrorMessage, EMPTY_CARE_FOCUS, formatVisitTime, LOAD_FAILED, LOADING_COPY, visitTypeLabel } from "../../lib/scheduleDisplay";
 import { formatVitalsLine } from "../../lib/visitDisplay";
 import { fontFamily } from "../../theme/tokens";
+import { AppHeader } from "../../ui/AppHeader";
 import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/TextField";
 import { chromeForAccount, type HomeFeedItem } from "./roleHome";
-
-const logo = require("../../../assets/logo.png");
 
 export function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= 960;
-  const { session, ready, signOut } = useAuth();
+  const { session, ready } = useAuth();
   const queryClient = useQueryClient();
   const [sosState, setSosState] = useState<"idle" | "confirm" | "sending" | "sent" | "error">("idle");
   const [sosNote, setSosNote] = useState("");
@@ -97,18 +96,7 @@ export function HomeScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        <Image source={logo} style={styles.headerLogo} resizeMode="contain" accessibilityLabel="DAYA CARES" />
-        <View style={styles.headerRight}>
-          <Text style={styles.roleChip}>{ROLE_LABEL[session.role]}</Text>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{home.avatar}</Text>
-          </View>
-          <Pressable onPress={() => { signOut(); router.replace("/"); }} accessibilityRole="button">
-            <Text style={styles.signOut}>Sign out</Text>
-          </Pressable>
-        </View>
-      </View>
+      <AppHeader />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.hero}>
@@ -345,12 +333,12 @@ function feedFromSummary(
 }
 
 function FeedIcon({ name }: { name: HomeFeedItem["icon"] }) {
-  if (name === "ok") return <Ionicons name="checkmark-circle" size={28} color="#2E9E6B" />;
-  if (name === "calendar") return <Ionicons name="calendar" size={26} color="#0057B8" />;
-  if (name === "health") return <MaterialCommunityIcons name="heart-pulse" size={26} color="#E53935" />;
-  if (name === "billing") return <Ionicons name="card" size={26} color="#2E9E6B" />;
-  if (name === "users") return <Ionicons name="people" size={26} color="#0057B8" />;
-  return <Ionicons name="alert-circle" size={26} color="#E53935" />;
+  if (name === "ok") return <Ionicons name="checkmark-circle" size={22} color="#2E7D57" />;
+  if (name === "calendar") return <Ionicons name="calendar-outline" size={22} color="#0057B8" />;
+  if (name === "health") return <MaterialCommunityIcons name="heart-pulse" size={22} color="#0057B8" />;
+  if (name === "billing") return <Ionicons name="card-outline" size={22} color="#0057B8" />;
+  if (name === "users") return <Ionicons name="people-outline" size={22} color="#0057B8" />;
+  return <Ionicons name="alert-circle" size={22} color="#B42318" />;
 }
 
 function FeedRow({
@@ -392,27 +380,6 @@ function FeedRow({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#F3F7FB" },
-  header: {
-    minHeight: 56,
-    backgroundColor: "#003B70",
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerLogo: { width: 220, height: 40 },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
-  roleChip: { fontFamily, color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#2F80ED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { color: "#FFFFFF", fontFamily, fontWeight: "700", fontSize: 13 },
-  signOut: { fontFamily, color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
   scroll: { paddingBottom: 40 },
   hero: {
     backgroundColor: "#E3F0FA",
@@ -448,12 +415,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E53935",
-    borderRadius: 8,
+    borderRadius: 4,
     padding: 16,
     gap: 10,
     marginBottom: 18,
   },
-  sosTitle: { fontFamily, fontSize: 16, fontWeight: "700", color: "#1A2B4C" },
+  sosTitle: { fontFamily, fontSize: 16, fontWeight: "700", color: "#1A2433" },
   sosBody: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775" },
   sosActions: { gap: 10 },
   mailBanner: {
@@ -462,13 +429,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#0057B8",
-    borderRadius: 8,
+    borderRadius: 4,
     padding: 16,
     gap: 10,
     marginBottom: 18,
     alignItems: "stretch",
   },
-  mailLabel: { fontFamily, fontSize: 13, fontWeight: "600", color: "#1A2B4C" },
+  mailLabel: { fontFamily, fontSize: 13, fontWeight: "600", color: "#1A2433" },
   mailBody: {
     minHeight: 96,
     borderWidth: 1,
@@ -529,7 +496,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D5DEE7",
-    borderRadius: 8,
+    borderRadius: 4,
     overflow: "hidden",
   },
   feedRow: {
@@ -560,7 +527,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D5DEE7",
-    borderRadius: 8,
+    borderRadius: 4,
     padding: 18,
     gap: 14,
   },
