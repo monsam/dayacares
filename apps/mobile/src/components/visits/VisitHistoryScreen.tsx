@@ -62,7 +62,9 @@ export function VisitHistoryScreen() {
 
       <ScrollView contentContainerStyle={styles.page}>
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
-          Select a Care Focus first. Then you can download prefilled forms and see their visit history.
+          {session?.role === "ADMIN"
+            ? "Select a Care Focus to open visit history and download their paper forms."
+            : "Select a Care Focus to see visit history and recorded vitals."}
         </Text>
 
         {customers.length ? (
@@ -85,10 +87,12 @@ export function VisitHistoryScreen() {
           </ScrollView>
         ) : null}
 
-        <ReportFormsCard
-          customerId={selectedId || undefined}
-          logId={selectedId ? latest?.log.log_id : undefined}
-        />
+        {session?.role === "ADMIN" ? (
+          <ReportFormsCard
+            customerId={selectedId || undefined}
+            logId={selectedId ? latest?.log.log_id : undefined}
+          />
+        ) : null}
 
         {selectedCustomer ? (
           <Text style={[styles.lead, { color: colors.inkMuted }]}>
@@ -101,11 +105,11 @@ export function VisitHistoryScreen() {
         )}
 
         {logsQuery.isLoading || customersQuery.isLoading ? (
-          <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading visits from MySQL…</Text>
+          <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading visits…</Text>
         ) : null}
         {logsQuery.isError ? (
           <Text style={[styles.meta, { color: colors.inkMuted }]}>
-            Could not load visits. Start the API with npm run api:dev.
+            Could not load visits. Try again in a moment.
           </Text>
         ) : null}
 

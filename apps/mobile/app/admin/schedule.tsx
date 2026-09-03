@@ -112,7 +112,7 @@ export default function SchedulingScreen() {
 
         {day.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading the day…</Text> : null}
         {day.isError ? (
-          <Text style={[styles.meta, { color: colors.danger }]}>Could not load the schedule. Is the API running?</Text>
+          <Text style={[styles.meta, { color: colors.danger }]}>Could not load the schedule. Try again in a moment.</Text>
         ) : null}
         {error ? <Text style={[styles.meta, { color: colors.danger }]}>{error}</Text> : null}
 

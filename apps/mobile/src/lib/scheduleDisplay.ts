@@ -24,6 +24,10 @@ export function formatVisitTime(iso: string) {
   return value.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: "UTC" });
 }
 
+export const LOADING_COPY = "Loading…";
+export const LOAD_FAILED = "Could not load this page. Try again in a moment.";
+export const EMPTY_CARE_FOCUS = "No Care Focus is linked to this account yet.";
+
 export function apiErrorMessage(err: unknown, fallback: string) {
   if (err && typeof err === "object" && "response" in err) {
     return String((err as { response?: { data?: { error?: string } } }).response?.data?.error ?? fallback);

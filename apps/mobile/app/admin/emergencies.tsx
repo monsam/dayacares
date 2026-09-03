@@ -107,7 +107,7 @@ export default function EmergenciesScreen() {
         {error ? <Text style={[styles.meta, { color: colors.danger }]}>{error}</Text> : null}
         {incidents.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading emergencies…</Text> : null}
         {incidents.isError ? (
-          <Text style={[styles.meta, { color: colors.danger }]}>Could not load emergencies. Is the API running?</Text>
+          <Text style={[styles.meta, { color: colors.danger }]}>Could not load emergencies. Try again in a moment.</Text>
         ) : null}
 
         <Card style={styles.card}>
