@@ -37,12 +37,12 @@ export default function MembersScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.page}>
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
-          Care Recipients in MySQL. Register a new member using the DAYA CARES paper form sections.
+          Registered Care Recipients. Use Register to add a member from the paper form.
         </Text>
         <Button label="Register Care Recipient" onPress={() => router.push("/admin/register")} />
         {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading members…</Text> : null}
         {query.isError ? (
-          <Text style={[styles.meta, { color: colors.inkMuted }]}>Could not load members. Is the API running?</Text>
+          <Text style={[styles.meta, { color: colors.inkMuted }]}>Could not load members. Try again in a moment.</Text>
         ) : null}
         {query.data?.map((member) => (
           <Card key={member.customer_id} style={styles.card}>

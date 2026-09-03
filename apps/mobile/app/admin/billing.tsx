@@ -95,7 +95,7 @@ export default function BillingScreen() {
         {error ? <Text style={[styles.meta, { color: colors.danger }]}>{error}</Text> : null}
         {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading billing…</Text> : null}
         {query.isError ? (
-          <Text style={[styles.meta, { color: colors.danger }]}>Could not load billing. Is the API running?</Text>
+          <Text style={[styles.meta, { color: colors.danger }]}>Could not load billing. Try again in a moment.</Text>
         ) : null}
 
         {board?.accounts.map((account) => (

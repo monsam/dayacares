@@ -75,7 +75,7 @@ export default function WorkerRoutingScreen() {
         </Pressable>
         {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading caseloads…</Text> : null}
         {query.isError ? (
-          <Text style={[styles.meta, { color: colors.danger }]}>Could not load routing. Is the API running?</Text>
+          <Text style={[styles.meta, { color: colors.danger }]}>Could not load routing. Try again in a moment.</Text>
         ) : null}
         {error ? <Text style={[styles.meta, { color: colors.danger }]}>{error}</Text> : null}
 

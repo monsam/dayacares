@@ -171,6 +171,8 @@ export interface CareTeamPerson {
   name: string;
   role_label: string;
   initials: string;
+  email?: string;
+  role?: UserRole;
 }
 
 export interface HomeSummaryResponse {

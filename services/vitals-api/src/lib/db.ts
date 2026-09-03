@@ -624,9 +624,16 @@ export async function getVisitSummary(logId: string): Promise<HomeVisitSummary> 
 
 export async function listCareTeam(user: User, customers: CustomerSummary[]): Promise<CareTeamPerson[]> {
   const people = new Map<string, CareTeamPerson>();
-  const add = (id: string, name: string, roleLabel: string) => {
+  const add = (id: string, name: string, roleLabel: string, email?: string, role?: User["role"]) => {
     if (id === user.user_id || people.has(id)) return;
-    people.set(id, { user_id: id, name, role_label: roleLabel, initials: initials(name) });
+    people.set(id, {
+      user_id: id,
+      name,
+      role_label: roleLabel,
+      initials: initials(name),
+      email: email?.trim() || undefined,
+      role,
+    });
   };
 
   if (user.role === "ADMIN") {
@@ -634,39 +641,39 @@ export async function listCareTeam(user: User, customers: CustomerSummary[]): Pr
       "SELECT * FROM users WHERE role IN ('WORKER', 'ADMIN') ORDER BY full_name",
     );
     for (const row of rows) {
-      add(row.user_id, row.full_name, row.role === "ADMIN" ? "Admin" : "Care Giver");
+      add(row.user_id, row.full_name, row.role === "ADMIN" ? "Admin" : "Care Giver", row.email, row.role);
     }
     return [...people.values()];
   }
 
   for (const customer of customers) {
-    add(customer.user_id, customer.name, customer.plan ? `${customer.plan} plan` : "Care Focus");
+    add(customer.user_id, customer.name, customer.plan ? `${customer.plan} plan` : "Care Focus", undefined, "CUSTOMER");
   }
 
   const customerIds = customers.map((customer) => customer.customer_id);
   if (!customerIds.length) return [...people.values()];
 
   const { params, sql } = inParams(customerIds, "tid");
-  const [familyRows] = await pool.query<(RowDataPacket & { user_id: string; full_name: string; relationship: string })[]>(
-    `SELECT u.user_id, u.full_name, m.relationship
+  const [familyRows] = await pool.query<(RowDataPacket & { user_id: string; full_name: string; email: string; relationship: string })[]>(
+    `SELECT u.user_id, u.full_name, u.email, m.relationship
      FROM family_mappings m
      JOIN users u ON u.user_id = m.family_user_id
      WHERE m.customer_id IN (${sql})`,
     params,
   );
   for (const row of familyRows) {
-    add(row.user_id, row.full_name, `${row.relationship} · Care Family`);
+    add(row.user_id, row.full_name, `${row.relationship} · Care Family`, row.email, "FAMILY");
   }
 
-  const [workerRows] = await pool.query<(RowDataPacket & { user_id: string; full_name: string })[]>(
-    `SELECT DISTINCT u.user_id, u.full_name
+  const [workerRows] = await pool.query<(RowDataPacket & { user_id: string; full_name: string; email: string })[]>(
+    `SELECT DISTINCT u.user_id, u.full_name, u.email
      FROM worker_allocations a
      JOIN users u ON u.user_id = a.worker_id
      WHERE a.customer_id IN (${sql})`,
     params,
   );
   for (const row of workerRows) {
-    add(row.user_id, row.full_name, "Care Giver");
+    add(row.user_id, row.full_name, "Care Giver", row.email, "WORKER");
   }
 
   return [...people.values()];

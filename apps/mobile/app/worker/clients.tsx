@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { listCustomers } from "../../src/api/customers";
 import { useTheme } from "../../src/theme/ThemeContext";
 import { space, type } from "../../src/theme/tokens";
@@ -19,20 +19,24 @@ export default function ClientsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <View style={[styles.nav, { backgroundColor: colors.navy }]}>
+        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
+          <Text style={styles.navBack}>Home</Text>
+        </Pressable>
         <Text style={styles.navBrand}>Select Care Focus</Text>
+        <View style={{ width: 56 }} />
       </View>
       <ScrollView contentContainerStyle={styles.page}>
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
           Assigned clients for this Care Giver shift. Choose a Care Focus to enter visit data.
         </Text>
-        {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading from MySQL…</Text> : null}
+        {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading…</Text> : null}
         {query.isError ? (
           <Text style={[styles.meta, { color: colors.inkMuted }]}>
-            Could not load clients. Start the API with npm run api:dev.
+            Could not load clients. Try again in a moment.
           </Text>
         ) : null}
         {query.data?.length === 0 ? (
-          <Text style={[styles.meta, { color: colors.inkMuted }]}>No assigned Care Focus in MySQL.</Text>
+          <Text style={[styles.meta, { color: colors.inkMuted }]}>No Care Focus is assigned to you yet.</Text>
         ) : null}
         {query.data?.map((client) => (
           <Card key={client.customer_id} style={styles.card}>
@@ -51,7 +55,14 @@ export default function ClientsScreen() {
 }
 
 const styles = StyleSheet.create({
-  nav: { minHeight: 56, paddingHorizontal: space.lg, justifyContent: "center" },
+  nav: {
+    minHeight: 56,
+    paddingHorizontal: space.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  navBack: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", width: 56 },
   navBrand: { color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
   page: { padding: space.lg, gap: space.md },
   lead: { fontSize: type.body, lineHeight: 26 },

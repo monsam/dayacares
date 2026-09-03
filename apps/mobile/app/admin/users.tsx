@@ -174,7 +174,7 @@ export default function UsersScreen() {
         {notice ? <Text style={[styles.meta, { color: colors.blue }]}>{notice}</Text> : null}
         {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading users…</Text> : null}
         {query.isError ? (
-          <Text style={[styles.meta, { color: colors.danger }]}>Could not load users. Is the API running?</Text>
+          <Text style={[styles.meta, { color: colors.danger }]}>Could not load users. Try again in a moment.</Text>
         ) : null}
 
         {grouped.map((group) => (

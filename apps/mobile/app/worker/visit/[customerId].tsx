@@ -41,11 +41,11 @@ export default function VisitScreen() {
         <View style={{ width: 56 }} />
       </View>
       {query.isLoading ? (
-        <Text style={{ padding: 24, color: colors.inkMuted }}>Loading Care Focus from MySQL…</Text>
+        <Text style={{ padding: 24, color: colors.inkMuted }}>Loading Care Focus…</Text>
       ) : null}
       {query.isError || !id ? (
         <Text style={{ padding: 24, color: colors.inkMuted }}>
-          This Care Focus is not in MySQL, or the API is offline.
+          Could not load this Care Focus. Try again in a moment.
         </Text>
       ) : null}
       {query.data ? (

@@ -24,10 +24,10 @@ const badgeAndroid = require("../../../assets/badge_android.png");
 
 const FEATURES = [
   {
-    icon: "mail-outline" as const,
-    tint: "#2F80ED",
-    title: "Communicate with your care team",
-    body: "Message DAYA Cares from home without waiting for a callback.",
+    icon: "alert-circle-outline" as const,
+    tint: "#E53935",
+    title: "Emergency SOS",
+    body: "Alert the Durgapur centre and linked Care Family when someone needs help now.",
   },
   {
     icon: "flask-outline" as const,
@@ -36,28 +36,16 @@ const FEATURES = [
     body: "See vitals, worker notes, and comments after each home visit.",
   },
   {
-    icon: "medical-outline" as const,
-    tint: "#E05A5A",
-    title: "Request prescription support",
-    body: "Ask for refill help and keep prescription photos in one place.",
-  },
-  {
     icon: "calendar-outline" as const,
     tint: "#E85D4C",
     title: "Manage your home visits",
-    body: "Check upcoming visits or request a planned Care Giver visit.",
+    body: "Check upcoming visits and the Care Giver assigned to each one.",
   },
   {
     icon: "call-outline" as const,
     tint: "#2E9E6B",
-    title: "Welfare calls and classes",
-    body: "See scheduled welfare calls and community events in Durgapur.",
-  },
-  {
-    icon: "cash-outline" as const,
-    tint: "#2F9E6E",
-    title: "Pay your membership bills",
-    body: "View statements and renew Essential, Enhanced, or Comprehensive.",
+    title: "Welfare calls",
+    body: "See scheduled welfare checks for Care Focus members in Durgapur.",
   },
 ];
 
@@ -104,7 +92,7 @@ export function LoginScreen() {
 
   const loginFields = (
     <>
-      <LoginField kind="username" label="Daya username" />
+      <LoginField kind="username" label="Username" />
       <LoginField
         kind="password"
         label="Password"
@@ -124,12 +112,12 @@ export function LoginScreen() {
           </Pressable>
         }
       />
-      <Pressable accessibilityRole="link">
-        <Text style={styles.link}>Forgot login information?</Text>
-      </Pressable>
+      <Text style={styles.help}>
+        Forgot your password? Call the Durgapur centre at 0343 240 0000.
+      </Text>
       <Button
         submit
-        label={pending ? "Signing in…" : "Log in"}
+        label={pending ? "Signing in…" : "Sign in"}
         size="compact"
         disabled={pending}
         onPress={() => {
@@ -189,23 +177,17 @@ export function LoginScreen() {
                   accessibilityLabel="Get it on Google Play"
                 />
               </View>
-              <View style={styles.legalRow}>
-                <Text style={styles.legal}>FAQs</Text>
-                <Text style={styles.legal}>Privacy Policy</Text>
-                <Text style={styles.legal}>Terms and Conditions</Text>
-                <Pressable onPress={toggleHighContrast} accessibilityRole="button">
-                  <Text style={[styles.legal, { color: colors.blue, fontWeight: "700" }]}>
-                    {highContrast ? "Standard theme" : "High Contrast Theme"}
-                  </Text>
-                </Pressable>
-              </View>
+              <Pressable onPress={toggleHighContrast} accessibilityRole="button">
+                <Text style={[styles.contrastText, { color: colors.blue }]}>
+                  {highContrast ? "Use standard contrast" : "Use high contrast"}
+                </Text>
+              </Pressable>
             </View>
           </View>
 
           <View style={[styles.right, !isWide && styles.rightNarrow]}>
-            <Text style={styles.loginTitle}>
-              Log in with your password for <Text style={styles.loginBrand}>Daya Cares</Text>
-            </Text>
+            <Text style={styles.loginTitle}>Sign in to Daya Cares</Text>
+            <Text style={styles.loginSub}>Use the username the centre created for you.</Text>
 
             {Platform.OS === "web"
               ? createElement(
@@ -221,22 +203,6 @@ export function LoginScreen() {
                   loginFields,
                 )
               : loginFields}
-            <Pressable accessibilityRole="button" style={styles.passkey}>
-              <Ionicons name="person-circle-outline" size={16} color={colors.blue} />
-              <Text style={styles.link}>Log in with passkey</Text>
-            </Pressable>
-            <View style={styles.helpRow}>
-              <View style={styles.helpItem}>
-                <Ionicons name="help-circle-outline" size={18} color={colors.blue} />
-                <Text style={styles.help}>Need help?</Text>
-              </View>
-              <View style={styles.helpItem}>
-                <Ionicons name="person-add-outline" size={16} color={colors.blue} />
-                <Text style={styles.help}>Sign up</Text>
-              </View>
-            </View>
-            <Button label="Sign up without activation code" size="compact" onPress={() => undefined} />
-            <Button label="Continue with phone OTP" size="compact" onPress={() => undefined} />
           </View>
         </View>
       </ScrollView>
@@ -289,7 +255,6 @@ const styles = StyleSheet.create({
   },
   panelWide: {
     flexDirection: "row",
-    maxHeight: 760,
     borderRadius: 20,
   },
   panelNarrow: {
@@ -305,7 +270,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: "100%",
-    height: 96,
+    height: 88,
     alignSelf: "stretch",
   },
   hero: {
@@ -345,16 +310,16 @@ const styles = StyleSheet.create({
     width: 148,
     height: 44,
   },
-  legalRow: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  legal: { fontFamily, fontSize: 13, color: "#5B6775" },
+  contrastText: { fontFamily, fontSize: 13, fontWeight: "600" },
   right: {
-    width: 400,
+    width: 380,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 32,
-    paddingVertical: 28,
+    paddingVertical: 36,
     gap: 12,
     borderLeftWidth: 1,
     borderLeftColor: "#E4EAF1",
+    justifyContent: "center",
   },
   rightNarrow: {
     width: "100%",
@@ -362,22 +327,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E4EAF1",
   },
-  loginTitle: { fontFamily, fontSize: 15, lineHeight: 22, color: "#1A2B4C", fontWeight: "400" },
-  loginBrand: { fontFamily, fontWeight: "700" },
-  link: { fontFamily, fontSize: 13, fontWeight: "600", color: "#0057B8" },
-  passkey: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 4,
-  },
-  helpRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    paddingVertical: 4,
-  },
-  helpItem: { alignItems: "center", gap: 4 },
-  help: { fontFamily, fontSize: 12, fontWeight: "600", color: "#1A2B4C" },
+  loginTitle: { fontFamily, fontSize: 22, lineHeight: 28, color: "#1A2B4C", fontWeight: "700" },
+  loginSub: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775", marginBottom: 8 },
+  help: { fontFamily, fontSize: 13, lineHeight: 18, color: "#5B6775" },
 });

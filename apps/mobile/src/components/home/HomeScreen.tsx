@@ -1,16 +1,18 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useEffect, type ReactNode } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import type { HomeSummaryResponse, HomeVisitSummary } from "@daya/shared";
 import { getHomeSummary } from "../../api/home";
 import { createSos } from "../../api/sos";
 import { ROLE_LABEL, useAuth } from "../../auth/AuthContext";
-import { apiErrorMessage, formatVisitTime, visitTypeLabel } from "../../lib/scheduleDisplay";
+import { caregiverEmails, openCaregiverMailto } from "../../lib/messageEmail";
+import { apiErrorMessage, EMPTY_CARE_FOCUS, formatVisitTime, LOAD_FAILED, LOADING_COPY, visitTypeLabel } from "../../lib/scheduleDisplay";
 import { formatVitalsLine } from "../../lib/visitDisplay";
 import { fontFamily } from "../../theme/tokens";
 import { Button } from "../../ui/Button";
+import { TextField } from "../../ui/TextField";
 import { chromeForAccount, type HomeFeedItem } from "./roleHome";
 
 const logo = require("../../../assets/logo.png");
@@ -21,6 +23,13 @@ export function HomeScreen() {
   const isWide = width >= 960;
   const { session, ready, signOut } = useAuth();
   const queryClient = useQueryClient();
+  const [sosState, setSosState] = useState<"idle" | "confirm" | "sending" | "sent" | "error">("idle");
+  const [sosNote, setSosNote] = useState("");
+  const [mailOpen, setMailOpen] = useState(false);
+  const [mailTo, setMailTo] = useState("");
+  const [mailSubject, setMailSubject] = useState("");
+  const [mailBody, setMailBody] = useState("");
+  const [mailError, setMailError] = useState("");
 
   const summary = useQuery({
     queryKey: ["home", session?.username],
@@ -42,36 +51,45 @@ export function HomeScreen() {
   const home = chromeForAccount(session);
   const feed = feedFromSummary(summary.data, session.role);
 
+  const sendSos = () => {
+    setSosState("sending");
+    createSos({
+      customer_id: summary.data?.customers[0]?.customer_id,
+      severity: "SOS",
+    })
+      .then((incident) => {
+        queryClient.invalidateQueries({ queryKey: ["home"] });
+        queryClient.invalidateQueries({ queryKey: ["sos"] });
+        setSosNote(`${incident.customer_name ?? "The centre"} has been alerted.`);
+        setSosState("sent");
+      })
+      .catch((err) => {
+        setSosNote(apiErrorMessage(err, "Could not send SOS. Call 0343 240 0000."));
+        setSosState("error");
+      });
+  };
+
+  const sendMail = () => {
+    setMailError("");
+    openCaregiverMailto(mailTo, mailSubject, mailBody).catch(() => {
+      setMailError("Could not open your email app. Copy the address and send from there.");
+    });
+  };
+
   const onAction = (route: string) => {
     if (route === "sos") {
-      Alert.alert(
-        "Emergency SOS",
-        "This will alert the DAYA Cares Durgapur team and the linked Care Family.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Send SOS",
-            style: "destructive",
-            onPress: () => {
-              createSos({
-                customer_id: summary.data?.customers[0]?.customer_id,
-                severity: "SOS",
-              })
-                .then((incident) => {
-                  queryClient.invalidateQueries({ queryKey: ["home"] });
-                  queryClient.invalidateQueries({ queryKey: ["sos"] });
-                  Alert.alert(
-                    "SOS sent",
-                    `${incident.customer_name ?? "The centre"} is on the emergency board.`,
-                  );
-                })
-                .catch((err) => {
-                  Alert.alert("Could not send SOS", apiErrorMessage(err, "Is the API running?"));
-                });
-            },
-          },
-        ],
-      );
+      setSosState("confirm");
+      setSosNote("");
+      setMailOpen(false);
+      return;
+    }
+    if (route === "message") {
+      setMailTo(caregiverEmails(summary.data?.team));
+      setMailSubject(`Daya Cares message from ${session.name}`);
+      setMailBody("");
+      setMailError("");
+      setMailOpen(true);
+      setSosState("idle");
       return;
     }
     router.push(route);
@@ -98,6 +116,71 @@ export function HomeScreen() {
           <View style={[styles.wave, styles.waveBottom]} />
           <Text style={styles.welcome}>{home.greeting}</Text>
           <Text style={styles.welcomeSub}>{home.subtitle}</Text>
+          {sosState !== "idle" ? (
+            <View style={styles.sosBanner}>
+              {sosState === "confirm" || sosState === "sending" ? (
+                <>
+                  <Text style={styles.sosTitle}>Send an emergency SOS?</Text>
+                  <Text style={styles.sosBody}>
+                    This alerts the Durgapur centre and the linked Care Family.
+                  </Text>
+                  <View style={styles.sosActions}>
+                    <Button
+                      label={sosState === "sending" ? "Sending…" : "Send SOS"}
+                      size="compact"
+                      disabled={sosState === "sending"}
+                      onPress={sendSos}
+                      pressOnDown
+                    />
+                    <Button
+                      label="Cancel"
+                      size="compact"
+                      variant="secondary"
+                      disabled={sosState === "sending"}
+                      onPress={() => setSosState("idle")}
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.sosTitle}>{sosState === "sent" ? "SOS sent" : "Could not send SOS"}</Text>
+                  <Text style={styles.sosBody}>{sosNote}</Text>
+                  <Button label="Close" size="compact" variant="secondary" onPress={() => setSosState("idle")} />
+                </>
+              )}
+            </View>
+          ) : null}
+          {mailOpen ? (
+            <View style={styles.mailBanner}>
+              <Text style={styles.sosTitle}>Send a message</Text>
+              <Text style={styles.sosBody}>
+                Opens your email app to the assigned Care Giver. Leave To blank if no address is on file.
+              </Text>
+              <TextField
+                compact
+                label="To"
+                value={mailTo}
+                onChangeText={setMailTo}
+                keyboardType="email-address"
+                placeholder="Care Giver email"
+                helper={mailTo ? undefined : "No Care Giver email on this account."}
+              />
+              <TextField compact label="Subject" value={mailSubject} onChangeText={setMailSubject} />
+              <Text style={styles.mailLabel}>Message</Text>
+              <TextInput
+                value={mailBody}
+                onChangeText={setMailBody}
+                multiline
+                placeholder="Write your message"
+                style={styles.mailBody}
+              />
+              {mailError ? <Text style={styles.mailError}>{mailError}</Text> : null}
+              <View style={styles.sosActions}>
+                <Button label="Send email" size="compact" onPress={sendMail} pressOnDown />
+                <Button label="Cancel" size="compact" variant="secondary" onPress={() => setMailOpen(false)} />
+              </View>
+            </View>
+          ) : null}
           <View style={[styles.actionRow, !isWide && styles.actionRowWrap]}>
             {home.actions.map((action) => (
               <Pressable
@@ -118,9 +201,9 @@ export function HomeScreen() {
           <View style={styles.feed}>
             <View style={styles.feedCard}>
               {summary.isLoading ? (
-                <Text style={styles.empty}>Loading updates from MySQL…</Text>
+                <Text style={styles.empty}>{LOADING_COPY}</Text>
               ) : summary.isError ? (
-                <Text style={styles.empty}>Could not load home data. Start the API with npm run api:dev.</Text>
+                <Text style={styles.empty}>{LOAD_FAILED}</Text>
               ) : (
                 feed.map((item, index) => (
                   <View key={`${item.title}-${index}`}>
@@ -163,7 +246,7 @@ export function HomeScreen() {
               </View>
             ))}
             {summary.data && summary.data.team.length === 0 ? (
-              <Text style={styles.empty}>No linked people in MySQL yet.</Text>
+              <Text style={styles.empty}>{EMPTY_CARE_FOCUS}</Text>
             ) : null}
             <Pressable accessibilityRole="link" onPress={() => onAction(home.sidebarRoute)}>
               <Text style={styles.sidebarLink}>{home.sidebarLink}</Text>
@@ -196,7 +279,7 @@ function feedFromSummary(
           : `${summary.customers.length} people on this account`,
       body:
         summary.customers.length === 0
-          ? "No Care Focus records in MySQL for this login."
+          ? EMPTY_CARE_FOCUS
           : summary.customers.map((customer) => `${customer.name} · ${customer.address}`).join("\n"),
       primary: role === "WORKER" ? "Open list" : "View history",
       primaryRoute: role === "WORKER" ? "/worker/clients" : "/visits",
@@ -359,6 +442,47 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 22,
   },
+  sosBanner: {
+    width: "100%",
+    maxWidth: 560,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E53935",
+    borderRadius: 8,
+    padding: 16,
+    gap: 10,
+    marginBottom: 18,
+  },
+  sosTitle: { fontFamily, fontSize: 16, fontWeight: "700", color: "#1A2B4C" },
+  sosBody: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775" },
+  sosActions: { gap: 10 },
+  mailBanner: {
+    width: "100%",
+    maxWidth: 560,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#0057B8",
+    borderRadius: 8,
+    padding: 16,
+    gap: 10,
+    marginBottom: 18,
+    alignItems: "stretch",
+  },
+  mailLabel: { fontFamily, fontSize: 13, fontWeight: "600", color: "#1A2B4C" },
+  mailBody: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: "#C5D4E4",
+    borderRadius: 4,
+    backgroundColor: "#EAF2FA",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontFamily,
+    fontSize: 14,
+    color: "#1A2B4C",
+    textAlignVertical: "top",
+  },
+  mailError: { fontFamily, fontSize: 13, color: "#C0392B" },
   actionRow: {
     width: "100%",
     maxWidth: 980,

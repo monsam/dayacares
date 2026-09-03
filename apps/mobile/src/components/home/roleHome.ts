@@ -48,14 +48,12 @@ export function chromeForAccount(account: SessionUser): RoleChrome {
       avatar,
       actions: [
         { key: "sos", label: "Emergency SOS", icon: "alert-circle", route: "sos" },
-        { key: "visits", label: "Upcoming visits", icon: "calendar", route: "/visits" },
         { key: "health", label: "My health", icon: "heart", route: "/visits" },
-        { key: "calls", label: "Welfare calls", icon: "call", route: "/home" },
-        { key: "messages", label: "Messages", icon: "mail", route: "/home" },
-        { key: "billing", label: "My plan", icon: "card", route: "/home" },
+        { key: "visits", label: "Visits", icon: "calendar", route: "/visits" },
+        { key: "messages", label: "Messages", icon: "mail", route: "message" },
       ],
       sidebarTitle: "My care team",
-      sidebarLink: "See emergency contacts →",
+      sidebarLink: "View visit history →",
       sidebarRoute: "/visits",
     };
   }
@@ -66,15 +64,13 @@ export function chromeForAccount(account: SessionUser): RoleChrome {
       subtitle: ROLE_LABEL.FAMILY,
       avatar,
       actions: [
-        { key: "health", label: "Mum's health", icon: "heart", route: "/visits" },
-        { key: "visits", label: "Visit history", icon: "calendar", route: "/visits" },
-        { key: "alerts", label: "Alerts", icon: "notifications", route: "/home" },
-        { key: "messages", label: "Messages", icon: "mail", route: "/home" },
         { key: "sos", label: "Emergency SOS", icon: "alert-circle", route: "sos" },
-        { key: "billing", label: "Membership", icon: "card", route: "/home" },
+        { key: "health", label: "Health records", icon: "heart", route: "/visits" },
+        { key: "visits", label: "Visit history", icon: "calendar", route: "/visits" },
+        { key: "messages", label: "Messages", icon: "mail", route: "message" },
       ],
       sidebarTitle: "Linked Care Focus",
-      sidebarLink: "Manage family access →",
+      sidebarLink: "View visit history →",
       sidebarRoute: "/visits",
     };
   }
@@ -107,12 +103,10 @@ export function chromeForAccount(account: SessionUser): RoleChrome {
       { key: "visits", label: "Home visits", icon: "calendar", route: "/worker/clients" },
       { key: "schedule", label: "Today's route", icon: "navigate", route: "/worker/schedule" },
       { key: "health", label: "Visit results", icon: "heart", route: "/visits" },
-      { key: "welfare", label: "Welfare calls", icon: "call", route: "/worker/schedule" },
-      { key: "messages", label: "Messages", icon: "mail", route: "/worker" },
-      { key: "billing", label: "Membership", icon: "card", route: "/worker" },
+      { key: "messages", label: "Messages", icon: "mail", route: "message" },
     ],
     sidebarTitle: "Care team",
-    sidebarLink: "See care team details and manage →",
+    sidebarLink: "Open Care Focus list →",
     sidebarRoute: "/worker/clients",
   };
 }

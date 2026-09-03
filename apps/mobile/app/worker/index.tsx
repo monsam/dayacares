@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { listCustomers } from "../../src/api/customers";
+import { EMPTY_CARE_FOCUS, LOAD_FAILED, LOADING_COPY } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
 import { space, type } from "../../src/theme/tokens";
 import { Button } from "../../src/ui/Button";
@@ -10,10 +11,7 @@ import { Card } from "../../src/ui/Card";
 const ACTIONS = [
   { label: "Assigned clients", href: "/worker/clients" },
   { label: "Start visit", href: "/worker/clients" },
-  { label: "Messages", href: "/worker" },
   { label: "Today's schedule", href: "/worker/schedule" },
-  { label: "Notifications", href: "/worker" },
-  { label: "Emergency SOS", href: "/worker" },
 ];
 
 export default function WorkerDashboard() {
@@ -30,11 +28,14 @@ export default function WorkerDashboard() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Text style={styles.navBrand}>Daya Cares</Text>
-        <Text style={styles.navUser}>Care Giver</Text>
+        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
+          <Text style={styles.navBack}>Home</Text>
+        </Pressable>
+        <Text style={styles.navBrand}>Care Giver</Text>
+        <View style={{ width: 56 }} />
       </View>
       <ScrollView contentContainerStyle={styles.page}>
-        <Text style={[styles.hello, { color: colors.ink }]}>Welcome, Care Giver</Text>
+        <Text style={[styles.hello, { color: colors.ink }]}>Today's work</Text>
         <View style={styles.actions}>
           {ACTIONS.map((action) => (
             <Pressable
@@ -50,12 +51,12 @@ export default function WorkerDashboard() {
           <Text style={[styles.cardTitle, { color: colors.ink }]}>Assigned Care Focus</Text>
           <Text style={[styles.cardBody, { color: colors.inkMuted }]}>
             {query.isLoading
-              ? "Loading from MySQL…"
+              ? LOADING_COPY
               : query.isError
-                ? "Could not load assignments. Start the API with npm run api:dev."
+                ? LOAD_FAILED
                 : count
                   ? `${count} assigned · ${names}`
-                  : "No assigned Care Focus in MySQL."}
+                  : EMPTY_CARE_FOCUS}
           </Text>
           <Button label="Open Care Focus list" onPress={() => router.push("/worker/clients")} />
         </Card>
@@ -72,8 +73,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  navBrand: { color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  navUser: { color: "#FFFFFF", fontSize: 16 },
+  navBack: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  navBrand: { color: "#FFFFFF", fontSize: 18, fontWeight: "800" },
   page: { padding: space.lg, gap: space.lg },
   hello: { fontSize: type.display, fontWeight: "800" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },

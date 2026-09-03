@@ -34,7 +34,7 @@ export default function WorkerScheduleScreen() {
         </Text>
         {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading today’s visits…</Text> : null}
         {query.isError ? (
-          <Text style={[styles.meta, { color: colors.inkMuted }]}>Could not load the schedule. Is the API running?</Text>
+          <Text style={[styles.meta, { color: colors.inkMuted }]}>Could not load the schedule. Try again in a moment.</Text>
         ) : null}
         {query.data && visits.length === 0 ? (
           <Text style={[styles.meta, { color: colors.inkMuted }]}>No visits booked for you today.</Text>

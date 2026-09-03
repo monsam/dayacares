@@ -44,10 +44,10 @@ export function VisitDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.page}>
-        {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading visit from MySQL…</Text> : null}
+        {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading visit…</Text> : null}
         {query.isError || !id ? (
           <Text style={[styles.meta, { color: colors.inkMuted }]}>
-            This visit is not available, or the API is offline.
+            This visit is not available. Try again in a moment.
           </Text>
         ) : null}
 
@@ -79,7 +79,9 @@ export function VisitDetailScreen() {
               ))}
             </Card>
 
-            <ReportFormsCard customerId={visit.log.customer_id} logId={visit.log.log_id} />
+            {session?.role === "ADMIN" ? (
+              <ReportFormsCard customerId={visit.log.customer_id} logId={visit.log.log_id} />
+            ) : null}
 
             {observationRows(visit.log.qualitative_observations).length ? (
               <>
