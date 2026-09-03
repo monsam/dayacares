@@ -54,6 +54,7 @@ export default function VisitScreen() {
           customerName={query.data.name}
           address={query.data.address}
           workerName={session?.name ?? "Care Giver"}
+          plan={query.data.plan}
         />
       ) : null}
     </View>

@@ -103,12 +103,98 @@ export type PhysicalMobility =
   | "ASSISTED"
   | "OTHER";
 
+export interface HomeVisitMonitoring {
+  present?: string[];
+  present_other?: string;
+  present_name?: string;
+  arrival_time?: string;
+  departure_time?: string;
+  appearance?: string;
+  vs_previous?: string;
+  what_changed?: string;
+  recipient_concerns?: string;
+  immediate_concern?: "NO" | "YES";
+  urgent_flags?: string[];
+  urgent_other?: string;
+  urgent_actions?: string[];
+  escalation_time?: string;
+  unusual_observation?: string;
+  general_observation?: string[];
+  general_other?: string;
+  med_list_available?: "YES" | "NO";
+  med_list_changed?: "NO" | "YES";
+  med_changes?: string;
+  med_adherence?: string;
+  med_concern?: "NO" | "YES";
+  med_concern_details?: string;
+  med_stock?: string;
+  med_action?: string[];
+  appetite?: string;
+  fluid_intake?: string;
+  meals?: string;
+  sleep?: string;
+  routine_notes?: string;
+  mobility_current?: string;
+  mobility_change?: string;
+  mobility_difficulty?: string[];
+  fall_since_last?: "NO" | "YES";
+  fall_when?: string;
+  fall_injury?: string;
+  fall_action?: string;
+  new_safety_concern?: "NO" | "YES";
+  safety_details?: string;
+  safety_recommendation?: string;
+  hygiene?: string;
+  bathing?: string;
+  dressing?: string;
+  toileting?: string;
+  eating?: string;
+  moving_home?: string;
+  selfcare_change?: "NO" | "YES";
+  selfcare_details?: string;
+  mental_appear?: string[];
+  mental_other?: string;
+  social?: string[];
+  expressed?: string[];
+  mental_comments?: string;
+  mental_action?: string[];
+  upcoming?: string[];
+  upcoming_other?: string;
+  upcoming_date?: string;
+  pending_investigations?: "NONE" | "YES";
+  pending_details?: string;
+  healthcare_followup?: "NO" | "YES";
+  healthcare_followup_details?: string;
+  contacts_verified?: string;
+  contacts_change?: string;
+  family_comm?: string;
+  family_contacted?: string;
+  family_time?: string;
+  family_mode?: string;
+  requests?: string[];
+  requests_other?: string;
+  request_details?: string;
+  immediate_action?: string[];
+  immediate_other?: string;
+  followup_window?: string;
+  followup_date?: string;
+  overall_status?: "STABLE" | "ATTENTION" | "URGENT";
+  visit_summary?: string;
+  increased_monitoring?: string;
+  monitoring_reason?: string;
+  feedback?: string;
+  feedback_notes?: string;
+  ack_name?: string;
+  ack_role?: string;
+}
+
 export interface QualitativeObservations {
   mood_rating?: MoodRating;
   dietary_compliance?: DietaryCompliance;
   physical_mobility?: PhysicalMobility;
   worker_notes?: string;
   action_items_needed?: boolean;
+  monitoring?: HomeVisitMonitoring;
 }
 
 export interface HealthVisitLog {

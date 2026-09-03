@@ -1,5 +1,5 @@
 import type { HomeVisitSummary, QualitativeObservations, VitalsPayload } from "@daya/shared";
-import { deriveVisitAlert } from "@daya/shared";
+import { deriveVisitAlert, monitoringRows } from "@daya/shared";
 
 export function formatVitalsLine(vitals: VitalsPayload) {
   const parts = [
@@ -68,6 +68,9 @@ export function observationRows(observations: QualitativeObservations) {
   }
   if (observations.worker_notes) {
     rows.push({ label: "Notes", value: observations.worker_notes });
+  }
+  for (const row of monitoringRows(observations.monitoring)) {
+    rows.push({ label: `${row.section} · ${row.label}`, value: row.value });
   }
   return rows;
 }

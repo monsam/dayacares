@@ -42,6 +42,18 @@ export function deriveVisitAlert(
   if (observations.mood_rating && observations.mood_rating <= 2) {
     raise("WARNING", "LOW_MOOD");
   }
+  const monitoring = observations.monitoring;
+  if (monitoring?.immediate_concern === "YES") {
+    raise("CRITICAL", "IMMEDIATE_CONCERN_ON_VISIT");
+  }
+  if (monitoring?.overall_status === "URGENT") {
+    raise("CRITICAL", "URGENT_VISIT_ASSESSMENT");
+  } else if (monitoring?.overall_status === "ATTENTION") {
+    raise("WARNING", "ATTENTION_REQUIRED");
+  }
+  if (monitoring?.fall_since_last === "YES") {
+    raise("WARNING", "FALL_SINCE_LAST_VISIT");
+  }
 
   return { severity, flags };
 }
