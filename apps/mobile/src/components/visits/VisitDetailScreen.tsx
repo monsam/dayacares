@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getVisitLog } from "../../api/visits";
 import { useAuth } from "../../auth/AuthContext";
 import { formatVisitWhen, observationRows, visitAlert, vitalRows } from "../../lib/visitDisplay";
+import { monitoringRows } from "@daya/shared";
 import { useTheme } from "../../theme/ThemeContext";
 import { fontFamily, space, type } from "../../theme/tokens";
 import { Card } from "../../ui/Card";
@@ -83,19 +84,45 @@ export function VisitDetailScreen() {
               <ReportFormsCard customerId={visit.log.customer_id} logId={visit.log.log_id} />
             ) : null}
 
-            {observationRows(visit.log.qualitative_observations).length ? (
-              <>
-                <Text style={[styles.section, { color: colors.ink }]}>Care Giver notes</Text>
-                <Card style={styles.block}>
-                  {observationRows(visit.log.qualitative_observations).map((row) => (
-                    <View key={row.label} style={styles.row}>
-                      <Text style={[styles.label, { color: colors.inkMuted }]}>{row.label}</Text>
-                      <Text style={[styles.value, { color: colors.ink }]}>{row.value}</Text>
+            {(() => {
+              const basics = observationRows(visit.log.qualitative_observations).filter(
+                (row) => !row.label.includes(" · "),
+              );
+              const monitoring = monitoringRows(visit.log.qualitative_observations.monitoring);
+              const sections = [...new Set(monitoring.map((row) => row.section))];
+              return (
+                <>
+                  {basics.length ? (
+                    <>
+                      <Text style={[styles.section, { color: colors.ink }]}>Care Giver notes</Text>
+                      <Card style={styles.block}>
+                        {basics.map((row) => (
+                          <View key={row.label} style={styles.row}>
+                            <Text style={[styles.label, { color: colors.inkMuted }]}>{row.label}</Text>
+                            <Text style={[styles.value, { color: colors.ink }]}>{row.value}</Text>
+                          </View>
+                        ))}
+                      </Card>
+                    </>
+                  ) : null}
+                  {sections.map((section) => (
+                    <View key={section}>
+                      <Text style={[styles.section, { color: colors.ink }]}>{section}</Text>
+                      <Card style={styles.block}>
+                        {monitoring
+                          .filter((row) => row.section === section)
+                          .map((row) => (
+                            <View key={`${section}-${row.label}`} style={styles.row}>
+                              <Text style={[styles.label, { color: colors.inkMuted }]}>{row.label}</Text>
+                              <Text style={[styles.value, { color: colors.ink }]}>{row.value}</Text>
+                            </View>
+                          ))}
+                      </Card>
                     </View>
                   ))}
-                </Card>
-              </>
-            ) : null}
+                </>
+              );
+            })()}
           </>
         ) : null}
       </ScrollView>
