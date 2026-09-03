@@ -1,7 +1,9 @@
 import type { APIGatewayProxyEvent } from "aws-lambda";
-import type { UserRole } from "@daya/shared";
+import type { User, UserRole } from "@daya/shared";
 import { getUserByCognitoSub } from "./db";
 import { HttpError } from "./http";
+
+export const ALL_ROLES: UserRole[] = ["WORKER", "FAMILY", "CUSTOMER", "ADMIN"];
 
 export interface AuthenticatedCaller {
   cognito_sub: string;
@@ -68,4 +70,16 @@ export async function requireCaller(
     role,
     full_name: typeof claims.name === "string" ? claims.name : undefined,
   };
+}
+
+export async function requireUser(
+  event: APIGatewayProxyEvent,
+  allowed: UserRole[] = ALL_ROLES,
+): Promise<User> {
+  const caller = await requireCaller(event, allowed);
+  const user = await getUserByCognitoSub(caller.cognito_sub);
+  if (!user) {
+    throw new HttpError(403, "User profile is not provisioned.");
+  }
+  return user;
 }

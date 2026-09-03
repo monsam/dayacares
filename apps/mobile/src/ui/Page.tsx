@@ -87,7 +87,7 @@ export function CardGrid({ children }: { children: ReactNode }) {
   return (
     <View style={styles.grid}>
       {Children.toArray(children).map((child, index) => (
-        <View key={index} style={{ width: column }}>
+        <View key={index} style={{ width: column, alignSelf: "stretch" }}>
           {child}
         </View>
       ))}
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     maxWidth: PAGE_MAX,
     paddingHorizontal: PAGE_GUTTER,
     paddingTop: 28,
-    gap: 20,
+    gap: 16,
   },
   heading: { gap: 8, maxWidth: 720, marginBottom: 4 },
   backRow: { alignSelf: "flex-start", paddingVertical: 2 },

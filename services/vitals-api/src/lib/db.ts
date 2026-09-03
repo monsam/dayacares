@@ -391,6 +391,14 @@ export async function putHealthVisitLog(log: HealthVisitLog): Promise<void> {
   }
 }
 
+export async function listRecentVisitLogs(limit = 80): Promise<HealthVisitLog[]> {
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
+  const [rows] = await pool.query<VisitRow[]>(
+    `SELECT * FROM health_visit_logs ORDER BY visit_timestamp DESC LIMIT ${safeLimit}`,
+  );
+  return rows.map(mapVisit);
+}
+
 export async function listHealthVisitLogs(customerId: string): Promise<HealthVisitLog[]> {
   const [rows] = await pool.query<VisitRow[]>(
     `SELECT *
@@ -844,7 +852,7 @@ export async function updateDirectoryUser(
   if (existing.role === "ADMIN" && role !== "ADMIN" && (await countAdmins()) <= 1) {
     throw new HttpError(400, "The last Admin account must stay Admin.");
   }
-  if (actorId && userId === actorId && role !== "ADMIN") {
+  if (actorId && userId === actorId && existing.role === "ADMIN" && role !== "ADMIN") {
     throw new HttpError(400, "You cannot remove Admin from your own account.");
   }
   if (existing.role === "CUSTOMER" && role !== "CUSTOMER") {
@@ -903,6 +911,7 @@ export async function deleteDirectoryUser(userId: string, actorId?: string): Pro
     await connection.beginTransaction();
     const customerId = await getCustomerIdForUser(userId);
     if (customerId) {
+      await connection.query("DELETE FROM user_notifications WHERE customer_id = :customerId", { customerId });
       await connection.query("DELETE FROM membership_invoices WHERE customer_id = :customerId", { customerId });
       await connection.query("DELETE FROM sos_incidents WHERE customer_id = :customerId", { customerId });
       await connection.query("DELETE FROM visit_schedules WHERE customer_id = :customerId", { customerId });
@@ -911,6 +920,7 @@ export async function deleteDirectoryUser(userId: string, actorId?: string): Pro
       await connection.query("DELETE FROM family_mappings WHERE customer_id = :customerId", { customerId });
       await connection.query("DELETE FROM customer_profiles WHERE customer_id = :customerId", { customerId });
     }
+    await connection.query("DELETE FROM user_notifications WHERE user_id = :userId", { userId });
     await connection.query("DELETE FROM sos_incidents WHERE raised_by = :userId OR assigned_worker_id = :userId", {
       userId,
     });
@@ -1744,6 +1754,11 @@ export async function updateSubscription(customerId: string, status: Subscriptio
 export async function getSos(incidentId: string): Promise<SosIncident | undefined> {
   const [rows] = await pool.query<SosRow[]>(`${SOS_SELECT} WHERE s.incident_id = :incidentId LIMIT 1`, { incidentId });
   return rows[0] ? mapSos(rows[0]) : undefined;
+}
+
+export async function listAllSosIncidents(): Promise<SosIncident[]> {
+  const [rows] = await pool.query<SosRow[]>(`${SOS_SELECT} ORDER BY s.created_at DESC`);
+  return rows.map(mapSos);
 }
 
 export async function listSosForUser(user: User): Promise<SosIncident[]> {

@@ -229,6 +229,7 @@ export function GuidedVitalsForm({
       await clearVisitDraft(customerId);
       await queryClient.invalidateQueries({ queryKey: ["home"] });
       await queryClient.invalidateQueries({ queryKey: ["visits"] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
       if (result === "queued") {
         setOfflineNotice("Saved on this device. Daya will sync when the network returns.");
         setSubmitted("queued");

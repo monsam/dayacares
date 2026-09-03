@@ -17,6 +17,7 @@ services:
       - ./services/vitals-api/sql/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - ./services/vitals-api/sql/04-scheduling.sql:/docker-entrypoint-initdb.d/04-scheduling.sql:ro
       - ./services/vitals-api/sql/05-billing-sos.sql:/docker-entrypoint-initdb.d/05-billing-sos.sql:ro
+      - ./services/vitals-api/sql/07-notifications.sql:/docker-entrypoint-initdb.d/07-notifications.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-udaya", "-pdaya"]
       interval: 5s

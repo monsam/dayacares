@@ -59,6 +59,7 @@ export function HomeScreen() {
       .then((incident) => {
         queryClient.invalidateQueries({ queryKey: ["home"] });
         queryClient.invalidateQueries({ queryKey: ["sos"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
         setSosNote(`${incident.customer_name ?? "The centre"} has been alerted.`);
         setSosState("sent");
       })

@@ -61,6 +61,7 @@ export default function EmergenciesScreen() {
     await queryClient.invalidateQueries({ queryKey: ["sos"] });
     await queryClient.invalidateQueries({ queryKey: ["home"] });
     await queryClient.invalidateQueries({ queryKey: ["routing"] });
+    await queryClient.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const raise = useMutation({

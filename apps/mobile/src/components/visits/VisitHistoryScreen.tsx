@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   latest: { gap: 10 },
   latestName: { fontFamily, fontSize: 24, fontWeight: "800" },
   latestLine: { fontFamily, fontSize: 22, fontWeight: "700" },
-  section: { fontFamily, fontSize: 20, fontWeight: "800", marginTop: 8 },
+  section: { fontFamily, fontSize: 20, fontWeight: "800" },
   historyCard: { gap: 8 },
   historyName: { fontFamily, fontSize: 20, fontWeight: "800" },
   historyVitals: { fontFamily, fontSize: 18, fontWeight: "700" },

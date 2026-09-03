@@ -13,7 +13,7 @@
     "test": "npm run test --workspaces --if-present",
     "db:up": "docker compose up -d mysql",
     "db:down": "docker compose down",
-    "db:seed": "mysql -udaya -pdaya dayacares < services/vitals-api/sql/02-seed.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/04-scheduling.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/05-billing-sos.sql",
+    "db:seed": "mysql -udaya -pdaya dayacares < services/vitals-api/sql/02-seed.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/04-scheduling.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/05-billing-sos.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/07-notifications.sql",
     "api:dev": "npm run dev -w @daya/vitals-api"
   },
   "engines": {
