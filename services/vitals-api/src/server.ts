@@ -27,11 +27,17 @@ import { handler as listSos } from "./handlers/listSos";
 import { handler as createSos } from "./handlers/createSos";
 import { handler as updateSos } from "./handlers/updateSos";
 import { handler as login } from "./handlers/login";
+import { handler as getMe } from "./handlers/getMe";
+import { handler as updateMe } from "./handlers/updateMe";
+import { handler as listNotifications } from "./handlers/listNotifications";
+import { handler as getNotification } from "./handlers/getNotification";
+import { handler as updateNotification } from "./handlers/updateNotification";
 import { blankForm, filledForm, listForms } from "./handlers/downloadForm";
 import { requireCaller } from "./lib/auth";
 import { backfillDefaultPasswords } from "./lib/db";
 import { HttpError } from "./lib/http";
 import { pingDatabase, pool } from "./lib/mysql";
+import { backfillNotifications, ensureNotificationsTable } from "./lib/notifications";
 
 const app = express();
 app.use(cors());
@@ -134,6 +140,32 @@ app.post("/customers", async (req, res) => {
 
 app.get("/workers", async (req, res) => {
   await send(res, await invoke(listWorkers, toEvent(req)));
+});
+
+app.get("/me", async (req, res) => {
+  await send(res, await invoke(getMe, toEvent(req)));
+});
+
+app.patch("/me", async (req, res) => {
+  await send(res, await invoke(updateMe, toEvent(req)));
+});
+
+app.get("/notifications", async (req, res) => {
+  await send(res, await invoke(listNotifications, toEvent(req)));
+});
+
+app.get("/notifications/:notificationId", async (req, res) => {
+  await send(
+    res,
+    await invoke(getNotification, toEvent(req, { pathParameters: { notificationId: req.params.notificationId } })),
+  );
+});
+
+app.patch("/notifications/:notificationId", async (req, res) => {
+  await send(
+    res,
+    await invoke(updateNotification, toEvent(req, { pathParameters: { notificationId: req.params.notificationId } })),
+  );
 });
 
 app.get("/users", async (req, res) => {
@@ -292,6 +324,11 @@ const server = app.listen(config.port, async () => {
     const hashed = await backfillDefaultPasswords();
     if (hashed) {
       console.log(`Set the default login password on ${hashed} existing MySQL users.`);
+    }
+    await ensureNotificationsTable();
+    const seeded = await backfillNotifications();
+    if (seeded) {
+      console.log(`Created ${seeded} in-app notifications from existing SOS and visit alerts.`);
     }
     console.log(`Daya API listening on http://127.0.0.1:${config.port} (MySQL ${config.mysql.host}:${config.mysql.port}/${config.mysql.database})`);
   } catch (error) {

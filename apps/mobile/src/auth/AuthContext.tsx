@@ -18,6 +18,7 @@ interface AuthContextValue {
   ready: boolean;
   signIn: (username: string, password: string) => Promise<SessionUser>;
   signOut: () => void;
+  updateSession: (next: Partial<SessionUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -64,14 +65,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSessionToken();
   }, []);
 
+  const updateSession = useCallback(async (next: Partial<SessionUser>) => {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    let stored: (SessionUser & { token?: string }) | undefined;
+    if (raw) {
+      try {
+        stored = JSON.parse(raw) as SessionUser & { token?: string };
+      } catch {
+        stored = undefined;
+      }
+    }
+    setSession((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...next };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...stored, ...updated }));
+      return updated;
+    });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
       ready,
       signIn,
       signOut,
+      updateSession,
     }),
-    [ready, session, signIn, signOut],
+    [ready, session, signIn, signOut, updateSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

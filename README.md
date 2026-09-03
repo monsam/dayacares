@@ -52,9 +52,10 @@ mysql -udaya -pdaya < services/vitals-api/sql/01-schema.sql
 mysql -udaya -pdaya dayacares < services/vitals-api/sql/02-seed.sql
 mysql -udaya -pdaya dayacares < services/vitals-api/sql/04-scheduling.sql
 mysql -udaya -pdaya dayacares < services/vitals-api/sql/05-billing-sos.sql
+mysql -udaya -pdaya dayacares < services/vitals-api/sql/07-notifications.sql
 ```
 
-`03-registration.sql` and `06-auth.sql` are for older databases only. A fresh `01-schema.sql` already includes those columns. The API also adds `users.password_hash` at startup if it is missing.
+`03-registration.sql` and `06-auth.sql` are for older databases only. A fresh `01-schema.sql` already includes those columns. The API also adds `users.password_hash` and `user_notifications` at startup if they are missing.
 
 Default connection (see `.env.example`):
 

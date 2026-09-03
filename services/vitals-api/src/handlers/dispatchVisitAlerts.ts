@@ -5,6 +5,7 @@ import {
   deriveVisitAlert,
 } from "@daya/shared";
 import { getCustomer, getFamilyMappings, getUserById } from "../lib/db";
+import { notifyVisitAlert } from "../lib/notifications";
 import { dispatchOpsAndWhatsApp, dispatchPushNotifications } from "../lib/sns";
 
 export async function dispatchVisitAlerts(input: {
@@ -52,6 +53,12 @@ export async function dispatchVisitAlerts(input: {
       }),
     ),
   );
+
+  try {
+    await notifyVisitAlert({ log: input.log, workerName: input.workerName });
+  } catch (error) {
+    console.error("Could not create visit notifications", error);
+  }
 
   const extraChannels = await dispatchOpsAndWhatsApp({
     body: message,

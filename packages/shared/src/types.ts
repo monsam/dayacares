@@ -420,6 +420,39 @@ export interface UpdateDirectoryUserRequest {
   password?: string;
 }
 
+export interface UpdateOwnProfileRequest {
+  full_name?: string;
+  phone_number?: string;
+  email?: string;
+  password?: string;
+  address?: string;
+}
+
+export const NOTIFICATION_KINDS = ["SOS", "VISIT_ALERT"] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+export interface AppNotification {
+  notification_id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  related_type?: "SOS" | "VISIT";
+  related_id?: string;
+  customer_id?: string;
+  href?: string;
+  read_at?: string;
+  created_at: string;
+}
+
+export interface ListNotificationsResponse {
+  notifications: AppNotification[];
+  unread_count: number;
+}
+
+export interface UpdateNotificationRequest {
+  read?: boolean;
+}
+
 export interface RoutedMember {
   customer_id: string;
   name: string;

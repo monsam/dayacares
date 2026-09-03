@@ -31,7 +31,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 4,
     padding: 20,
-    height: "100%",
   },
   action: {
     marginHorizontal: -20,
