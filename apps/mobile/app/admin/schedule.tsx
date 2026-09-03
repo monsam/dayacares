@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { VisitSchedule, VisitType } from "@daya/shared";
 import { listCustomers, listWorkers } from "../../src/api/customers";
 import { createSchedule, listSchedules, updateSchedule } from "../../src/api/schedules";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiErrorMessage, formatVisitTime, localDateStamp, visitTypeLabel } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
-import { fontFamily, space, type } from "../../src/theme/tokens";
+import { fontFamily, type } from "../../src/theme/tokens";
 import { Button } from "../../src/ui/Button";
 import { Card } from "../../src/ui/Card";
 import { Chip } from "../../src/ui/Chip";
+import { CardGrid, PageShell } from "../../src/ui/Page";
 import { TextField } from "../../src/ui/TextField";
 
 const VISIT_TYPES: VisitType[] = ["HOME_VISIT", "WELFARE_CALL", "FOLLOW_UP"];
@@ -93,18 +94,14 @@ export default function SchedulingScreen() {
   const routes = useMemo(() => groupRoutes(day.data?.schedules ?? []), [day.data?.schedules]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
-          <Text style={styles.navBack}>Home</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Schedule</Text>
-        <View style={{ width: 56 }} />
-      </View>
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell
+      title="Schedule"
+      lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
           Book home visits and welfare calls. Overlapping times for the same Care Giver are blocked.
         </Text>
+      }
+    >
         <Pressable onPress={() => router.push("/admin/routing")} accessibilityRole="button">
           <Text style={[styles.link, { color: colors.blue }]}>Open Worker routing →</Text>
         </Pressable>
@@ -116,34 +113,36 @@ export default function SchedulingScreen() {
         ) : null}
         {error ? <Text style={[styles.meta, { color: colors.danger }]}>{error}</Text> : null}
 
-        {routes.map((route) => (
-          <Card key={route.workerId} style={styles.card}>
-            <Text style={[styles.heading, { color: colors.ink }]}>{route.workerName}</Text>
-            <Text style={[styles.meta, { color: colors.blue }]}>{route.stops.join(" → ")}</Text>
-            {route.visits.map((visit) => (
-              <View key={visit.schedule_id} style={styles.visit}>
-                <Text style={[styles.name, { color: colors.ink }]}>
-                  {formatVisitTime(visit.scheduled_for)} · {visit.customer_name}
-                </Text>
-                <Text style={[styles.meta, { color: colors.inkMuted }]}>
-                  {visitTypeLabel(visit.visit_type)} · {visit.duration_minutes} min · {visit.customer_address}
-                </Text>
-                {visit.notes ? <Text style={[styles.meta, { color: colors.inkMuted }]}>{visit.notes}</Text> : null}
-                {visit.status === "SCHEDULED" ? (
-                  <Button
-                    label="Cancel visit"
-                    variant="secondary"
-                    size="compact"
-                    disabled={cancel.isPending}
-                    onPress={() => cancel.mutate(visit.schedule_id)}
-                  />
-                ) : (
-                  <Text style={[styles.meta, { color: colors.inkMuted }]}>{visit.status}</Text>
-                )}
-              </View>
-            ))}
-          </Card>
-        ))}
+        <CardGrid>
+          {routes.map((route) => (
+            <Card key={route.workerId} style={styles.card}>
+              <Text style={[styles.heading, { color: colors.ink }]}>{route.workerName}</Text>
+              <Text style={[styles.meta, { color: colors.blue }]}>{route.stops.join(" → ")}</Text>
+              {route.visits.map((visit) => (
+                <View key={visit.schedule_id} style={styles.visit}>
+                  <Text style={[styles.name, { color: colors.ink }]}>
+                    {formatVisitTime(visit.scheduled_for)} · {visit.customer_name}
+                  </Text>
+                  <Text style={[styles.meta, { color: colors.inkMuted }]}>
+                    {visitTypeLabel(visit.visit_type)} · {visit.duration_minutes} min · {visit.customer_address}
+                  </Text>
+                  {visit.notes ? <Text style={[styles.meta, { color: colors.inkMuted }]}>{visit.notes}</Text> : null}
+                  {visit.status === "SCHEDULED" ? (
+                    <Button
+                      label="Cancel visit"
+                      variant="secondary"
+                      size="compact"
+                      disabled={cancel.isPending}
+                      onPress={() => cancel.mutate(visit.schedule_id)}
+                    />
+                  ) : (
+                    <Text style={[styles.meta, { color: colors.inkMuted }]}>{visit.status}</Text>
+                  )}
+                </View>
+              ))}
+            </Card>
+          ))}
+        </CardGrid>
 
         {day.data && day.data.schedules.length === 0 ? (
           <Text style={[styles.meta, { color: colors.inkMuted }]}>No visits on this date yet.</Text>
@@ -196,8 +195,7 @@ export default function SchedulingScreen() {
             }}
           />
         </Card>
-      </ScrollView>
-    </View>
+    </PageShell>
   );
 }
 
@@ -223,16 +221,6 @@ function groupRoutes(schedules: VisitSchedule[]) {
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 48 },
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
   link: { fontFamily, fontSize: 16, fontWeight: "700" },
   card: { gap: 10 },

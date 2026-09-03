@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { BillingAccount, SubscriptionStatus } from "@daya/shared";
 import { currentPeriodLabel, formatInr } from "@daya/shared";
 import { createInvoice, getBillingBoard, updateInvoice, updateSubscription } from "../../src/api/billing";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiErrorMessage } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
-import { fontFamily, space, type } from "../../src/theme/tokens";
+import { fontFamily, type } from "../../src/theme/tokens";
 import { Button } from "../../src/ui/Button";
 import { Card } from "../../src/ui/Card";
 import { Chip } from "../../src/ui/Chip";
+import { CardGrid, PageShell } from "../../src/ui/Page";
 
 const STATUSES: SubscriptionStatus[] = ["ACTIVE", "PAUSED", "INACTIVE"];
 
@@ -75,18 +76,14 @@ export default function BillingScreen() {
   const busy = charge.isPending || pay.isPending || subscribe.isPending;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
-          <Text style={styles.navBack}>Home</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Billing</Text>
-        <View style={{ width: 56 }} />
-      </View>
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell
+      title="Billing"
+      lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
           Membership fees by plan: Essential {formatInr(2999)}, Enhanced {formatInr(4999)}, Comprehensive {formatInr(7999)}.
         </Text>
+      }
+    >
         {board ? (
           <Text style={[styles.heading, { color: colors.ink }]}>
             {board.due_count} due · {formatInr(board.due_inr)}
@@ -98,19 +95,20 @@ export default function BillingScreen() {
           <Text style={[styles.meta, { color: colors.danger }]}>Could not load billing. Try again in a moment.</Text>
         ) : null}
 
-        {board?.accounts.map((account) => (
-          <AccountCard
-            key={account.customer_id}
-            account={account}
-            period={period}
-            busy={busy}
-            onStatus={(status) => subscribe.mutate({ customerId: account.customer_id, status })}
-            onCharge={() => charge.mutate(account.customer_id)}
-            onPay={(invoiceId, status) => pay.mutate({ invoiceId, status })}
-          />
-        ))}
-      </ScrollView>
-    </View>
+        <CardGrid>
+          {board?.accounts.map((account) => (
+            <AccountCard
+              key={account.customer_id}
+              account={account}
+              period={period}
+              busy={busy}
+              onStatus={(status) => subscribe.mutate({ customerId: account.customer_id, status })}
+              onCharge={() => charge.mutate(account.customer_id)}
+              onPay={(invoiceId, status) => pay.mutate({ invoiceId, status })}
+            />
+          ))}
+        </CardGrid>
+    </PageShell>
   );
 }
 
@@ -181,16 +179,6 @@ function AccountCard({
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 48 },
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
   card: { gap: 10 },
   heading: { fontFamily, fontSize: 22, fontWeight: "800" },

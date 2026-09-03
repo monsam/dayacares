@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { SosIncident, SosSeverity } from "@daya/shared";
 import { listCustomers, listWorkers } from "../../src/api/customers";
 import { createSos, listSos, updateSos } from "../../src/api/sos";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiErrorMessage, formatVisitTime } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
-import { fontFamily, space, type } from "../../src/theme/tokens";
+import { fontFamily, type } from "../../src/theme/tokens";
 import { Button } from "../../src/ui/Button";
 import { Card } from "../../src/ui/Card";
 import { Chip } from "../../src/ui/Chip";
+import { CardGrid, PageShell } from "../../src/ui/Page";
 import { TextField } from "../../src/ui/TextField";
 
 const SEVERITIES: SosSeverity[] = ["SOS", "FALL", "MEDICAL", "OTHER"];
@@ -89,18 +90,14 @@ export default function EmergenciesScreen() {
   const other = (incidents.data ?? []).filter((item) => item.status !== "OPEN");
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
-          <Text style={styles.navBack}>Home</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Emergencies</Text>
-        <View style={{ width: 56 }} />
-      </View>
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell
+      title="Emergencies"
+      lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
           Open SOS alerts from family, Care Focus, and Care Givers. Acknowledge, assign, then resolve.
         </Text>
+      }
+    >
         <Text style={[styles.heading, { color: colors.ink }]}>
           {open.length} open
         </Text>
@@ -145,26 +142,27 @@ export default function EmergenciesScreen() {
           />
         </Card>
 
-        {open.map((incident) => (
-          <IncidentCard
-            key={incident.incident_id}
-            incident={incident}
-            workers={workers.data ?? []}
-            busy={patch.isPending}
-            onPatch={(body) => patch.mutate({ incidentId: incident.incident_id, ...body })}
-          />
-        ))}
-        {other.map((incident) => (
-          <IncidentCard
-            key={incident.incident_id}
-            incident={incident}
-            workers={workers.data ?? []}
-            busy={patch.isPending}
-            onPatch={(body) => patch.mutate({ incidentId: incident.incident_id, ...body })}
-          />
-        ))}
-      </ScrollView>
-    </View>
+        <CardGrid>
+          {open.map((incident) => (
+            <IncidentCard
+              key={incident.incident_id}
+              incident={incident}
+              workers={workers.data ?? []}
+              busy={patch.isPending}
+              onPatch={(body) => patch.mutate({ incidentId: incident.incident_id, ...body })}
+            />
+          ))}
+          {other.map((incident) => (
+            <IncidentCard
+              key={incident.incident_id}
+              incident={incident}
+              workers={workers.data ?? []}
+              busy={patch.isPending}
+              onPatch={(body) => patch.mutate({ incidentId: incident.incident_id, ...body })}
+            />
+          ))}
+        </CardGrid>
+    </PageShell>
   );
 }
 
@@ -230,16 +228,6 @@ function IncidentCard({
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 48 },
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
   card: { gap: 10 },
   heading: { fontFamily, fontSize: 22, fontWeight: "800" },

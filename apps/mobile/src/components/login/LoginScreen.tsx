@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
-import { createElement, useRef, useState } from "react";
+import { createElement, useRef, useState, type ComponentProps } from "react";
 import {
   Image,
   Platform,
@@ -22,7 +22,7 @@ const hero = require("../../../assets/hero.png");
 const badgeApple = require("../../../assets/badge_apple.png");
 const badgeAndroid = require("../../../assets/badge_android.png");
 
-const FEATURES = [
+const FEATURES_LEFT = [
   {
     icon: "alert-circle-outline" as const,
     tint: "#E53935",
@@ -30,16 +30,19 @@ const FEATURES = [
     body: "Alert the Durgapur centre and linked Care Family when someone needs help now.",
   },
   {
-    icon: "flask-outline" as const,
-    tint: "#7B61FF",
-    title: "Access your visit results",
-    body: "See vitals, worker notes, and comments after each home visit.",
-  },
-  {
     icon: "calendar-outline" as const,
-    tint: "#E85D4C",
+    tint: "#0057B8",
     title: "Manage your home visits",
     body: "Check upcoming visits and the Care Giver assigned to each one.",
+  },
+];
+
+const FEATURES_RIGHT = [
+  {
+    icon: "flask-outline" as const,
+    tint: "#0057B8",
+    title: "Access your visit results",
+    body: "See vitals, worker notes, and comments after each home visit.",
   },
   {
     icon: "call-outline" as const,
@@ -51,9 +54,11 @@ const FEATURES = [
 
 export function LoginScreen() {
   const { colors, highContrast, toggleHighContrast } = useTheme();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { session, signIn } = useAuth();
   const isWide = width >= 980;
+  const pagePad = isWide ? 36 : 22;
+  const panelMin = Math.max(560, height - pagePad * 2);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -134,8 +139,8 @@ export function LoginScreen() {
   return (
     <View style={styles.root}>
       <WaveBackground />
-      <ScrollView contentContainerStyle={[styles.page, !isWide && styles.pageNarrow]}>
-        <View style={[styles.panel, isWide ? styles.panelWide : styles.panelNarrow]}>
+      <ScrollView contentContainerStyle={[styles.page, { padding: pagePad }]}>
+        <View style={[styles.panel, isWide ? styles.panelWide : styles.panelNarrow, { minHeight: panelMin }]}>
           <View style={styles.left}>
             <Image
               source={logo}
@@ -143,24 +148,25 @@ export function LoginScreen() {
               resizeMode="contain"
               accessibilityLabel="DAYA CARES and SOHOJIA logo"
             />
-            <Image
-              source={hero}
-              style={styles.hero}
-              resizeMode="contain"
-              accessibilityLabel="Daya Cares families in Durgapur"
-            />
-            <View style={styles.featureGrid}>
-              {FEATURES.map((feature) => (
-                <View key={feature.title} style={styles.featureItem}>
-                  <View style={[styles.iconBubble, { backgroundColor: `${feature.tint}18` }]}>
-                    <Ionicons name={feature.icon} size={26} color={feature.tint} />
-                  </View>
-                  <View style={styles.featureCopy}>
-                    <Text style={styles.featureTitle}>{feature.title}</Text>
-                    <Text style={styles.featureBody}>{feature.body}</Text>
-                  </View>
+            <View style={[styles.heroPanel, !isWide && styles.heroPanelNarrow]}>
+              <View style={[styles.heroBand, !isWide && styles.heroBandNarrow]}>
+                <View style={styles.featureCol}>
+                  {FEATURES_LEFT.map((feature) => (
+                    <FeatureItem key={feature.title} {...feature} />
+                  ))}
                 </View>
-              ))}
+                <Image
+                  source={hero}
+                  style={[styles.hero, !isWide && styles.heroNarrow]}
+                  resizeMode="contain"
+                  accessibilityLabel="Daya Cares families in Durgapur"
+                />
+                <View style={styles.featureCol}>
+                  {FEATURES_RIGHT.map((feature) => (
+                    <FeatureItem key={feature.title} {...feature} />
+                  ))}
+                </View>
+              </View>
             </View>
             <View style={styles.leftFooter}>
               <View style={styles.storeRow}>
@@ -210,6 +216,30 @@ export function LoginScreen() {
   );
 }
 
+function FeatureItem({
+  icon,
+  tint,
+  title,
+  body,
+}: {
+  icon: ComponentProps<typeof Ionicons>["name"];
+  tint: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <View style={styles.featureItem}>
+      <View style={[styles.iconBubble, { backgroundColor: `${tint}18` }]}>
+        <Ionicons name={icon} size={26} color={tint} />
+      </View>
+      <View style={styles.featureCopy}>
+        <Text style={styles.featureTitle}>{title}</Text>
+        <Text style={styles.featureBody}>{body}</Text>
+      </View>
+    </View>
+  );
+}
+
 function WaveBackground() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -239,13 +269,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 28,
   },
-  pageNarrow: { padding: 16 },
   panel: {
     width: "100%",
-    maxWidth: 1180,
-    backgroundColor: "#F4F8FC",
+    maxWidth: 1240,
+    backgroundColor: "#FFFFFF",
     overflow: "hidden",
     shadowColor: "#0A2540",
     shadowOpacity: 0.22,
@@ -255,6 +283,7 @@ const styles = StyleSheet.create({
   },
   panelWide: {
     flexDirection: "row",
+    alignItems: "stretch",
     borderRadius: 20,
   },
   panelNarrow: {
@@ -263,33 +292,53 @@ const styles = StyleSheet.create({
   },
   left: {
     flex: 1.65,
-    backgroundColor: "#F4F8FC",
-    paddingHorizontal: 28,
-    paddingVertical: 20,
-    gap: 12,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    gap: 14,
+  },
+  heroPanel: {
+    flexGrow: 1,
+    backgroundColor: "#E8F3FA",
+    borderRadius: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    justifyContent: "center",
+  },
+  heroPanelNarrow: {
+    minHeight: 0,
+    paddingVertical: 16,
   },
   logo: {
     width: "100%",
-    height: 88,
+    height: 112,
     alignSelf: "stretch",
   },
+  heroBand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+  },
+  heroBandNarrow: {
+    flexDirection: "column",
+    alignItems: "stretch",
+  },
+  featureCol: {
+    flex: 1,
+    gap: 28,
+    minWidth: 0,
+  },
   hero: {
+    width: 340,
+    height: 280,
+  },
+  heroNarrow: {
     width: "100%",
-    height: 190,
-    maxHeight: 190,
-    borderRadius: 16,
-    backgroundColor: "#E8F3FA",
+    height: 220,
     alignSelf: "center",
   },
-  featureGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    columnGap: 20,
-    rowGap: 18,
-  },
   featureItem: {
-    width: "47%",
-    minWidth: 220,
     flexDirection: "row",
     gap: 12,
     alignItems: "flex-start",
@@ -304,8 +353,16 @@ const styles = StyleSheet.create({
   featureCopy: { flex: 1, minWidth: 0 },
   featureTitle: { fontFamily, fontSize: 16, fontWeight: "700", color: "#1A2B4C", marginBottom: 4 },
   featureBody: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775" },
-  leftFooter: { marginTop: "auto" as never, gap: 14, paddingTop: 8 },
-  storeRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 },
+  leftFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: "auto" as never,
+    paddingTop: 4,
+  },
+  storeRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   storeBadge: {
     width: 148,
     height: 44,
@@ -315,7 +372,7 @@ const styles = StyleSheet.create({
     width: 380,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 32,
-    paddingVertical: 36,
+    paddingVertical: 28,
     gap: 12,
     borderLeftWidth: 1,
     borderLeftColor: "#E4EAF1",

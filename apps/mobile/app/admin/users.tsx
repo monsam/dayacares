@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import type { DirectoryUser, UserRole } from "@daya/shared";
 import { createUser, deleteUser, listUsers, updateUser } from "../../src/api/users";
 import { ROLE_LABEL, useAuth } from "../../src/auth/AuthContext";
 import { DEMO_PASSWORD } from "../../src/auth/demoAccounts";
 import { apiErrorMessage } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
-import { fontFamily, space, type } from "../../src/theme/tokens";
+import { fontFamily, type } from "../../src/theme/tokens";
 import { Button } from "../../src/ui/Button";
 import { Card } from "../../src/ui/Card";
 import { Chip } from "../../src/ui/Chip";
+import { PageShell } from "../../src/ui/Page";
 import { TextField } from "../../src/ui/TextField";
 
 const ROLE_ORDER: UserRole[] = ["ADMIN", "WORKER", "CUSTOMER", "FAMILY"];
@@ -143,18 +144,14 @@ export default function UsersScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
-          <Text style={styles.navBack}>Home</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Users</Text>
-        <View style={{ width: 56 }} />
-      </View>
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell
+      title="Users"
+      lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
           Create staff or family accounts here. They can log in with the username shown and {DEMO_PASSWORD} unless you set a password. For a full Care Recipient, Register on Members still captures the paper form.
         </Text>
+      }
+    >
 
         <Card style={styles.card}>
           <Text style={[styles.heading, { color: colors.ink }]}>Create user</Text>
@@ -237,8 +234,7 @@ export default function UsersScreen() {
             })}
           </Card>
         ))}
-      </ScrollView>
-    </View>
+    </PageShell>
   );
 }
 
@@ -298,16 +294,6 @@ function UserFields({
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 48 },
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
   card: { gap: 10 },
   heading: { fontFamily, fontSize: 22, fontWeight: "800" },

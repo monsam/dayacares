@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { getVisitLog } from "../../api/visits";
 import { useAuth } from "../../auth/AuthContext";
 import { formatVisitWhen, observationRows, visitAlert, vitalRows } from "../../lib/visitDisplay";
 import { monitoringRows } from "@daya/shared";
 import { useTheme } from "../../theme/ThemeContext";
-import { fontFamily, space, type } from "../../theme/tokens";
+import { fontFamily, type } from "../../theme/tokens";
 import { Card } from "../../ui/Card";
+import { FORM_MAX, PageShell } from "../../ui/Page";
 import { ReportFormsCard } from "./ReportFormsCard";
 
 export function VisitDetailScreen() {
@@ -35,16 +36,7 @@ export function VisitDetailScreen() {
   const alert = visit ? visitAlert(visit) : undefined;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/visits")} accessibilityRole="button">
-          <Text style={styles.navBack}>Back</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Visit details</Text>
-        <View style={{ width: 56 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell title="Visit details" backTo="/visits" backLabel="Visit history" maxWidth={FORM_MAX}>
         {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading visit…</Text> : null}
         {query.isError || !id ? (
           <Text style={[styles.meta, { color: colors.inkMuted }]}>
@@ -125,22 +117,11 @@ export function VisitDetailScreen() {
             })()}
           </>
         ) : null}
-      </ScrollView>
-    </View>
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 40 },
   block: { gap: 8 },
   kicker: { fontFamily, fontSize: 14, fontWeight: "700", textTransform: "uppercase" },
   title: { fontFamily, fontSize: type.title, fontWeight: "800" },

@@ -803,7 +803,14 @@ function Chip({
 }
 
 const styles = StyleSheet.create({
-  page: { padding: space.lg, gap: space.md, paddingBottom: 48 },
+  page: {
+    padding: space.lg,
+    gap: space.md,
+    paddingBottom: 48,
+    maxWidth: 720,
+    width: "100%",
+    alignSelf: "center",
+  },
   kicker: { fontSize: 16, fontWeight: "800" },
   title: { fontSize: type.title, fontWeight: "800" },
   progress: { fontSize: 16 },

@@ -2,12 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { CardGrid, PageShell } from "../../ui/Page";
 import { listCustomers } from "../../api/customers";
 import { listVisitLogs } from "../../api/visits";
 import { useAuth } from "../../auth/AuthContext";
 import { formatVisitWhen, formatVitalsLine, visitAlert, vitalRows } from "../../lib/visitDisplay";
 import { useTheme } from "../../theme/ThemeContext";
-import { fontFamily, space, type } from "../../theme/tokens";
+import { fontFamily, type } from "../../theme/tokens";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { ReportFormsCard } from "./ReportFormsCard";
@@ -51,21 +52,16 @@ export function VisitHistoryScreen() {
   const selectedCustomer = customers.find((customer) => customer.customer_id === selectedId);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <View style={[styles.nav, { backgroundColor: colors.navy }]}>
-        <Pressable onPress={() => router.push("/home")} accessibilityRole="button">
-          <Text style={styles.navBack}>Home</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>Visit history</Text>
-        <View style={{ width: 56 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.page}>
+    <PageShell
+      title="Visit history"
+      lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
           {session?.role === "ADMIN"
             ? "Select a Care Focus to open visit history and download their paper forms."
             : "Select a Care Focus to see visit history and recorded vitals."}
         </Text>
+      }
+    >
 
         {customers.length ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -148,42 +144,33 @@ export function VisitHistoryScreen() {
         {selectedId && logs.length > 1 ? (
           <Text style={[styles.section, { color: colors.ink }]}>Earlier visits</Text>
         ) : null}
-        {logs.slice(1).map((visit) => {
-          const alert = visitAlert(visit);
-          return (
-            <Card key={visit.log.log_id} style={styles.historyCard}>
-              <Text style={[styles.historyName, { color: colors.ink }]}>{visit.customer_name}</Text>
-              <Text style={[styles.historyVitals, { color: colors.ink }]}>{formatVitalsLine(visit.log.vitals_payload)}</Text>
-              <Text style={[styles.meta, { color: colors.inkMuted }]}>
-                {formatVisitWhen(visit.log.visit_timestamp)} · {visit.worker_name}
-              </Text>
-              {alert.flags.length ? (
-                <Text style={[styles.meta, { color: colors.warning }]}>{alert.severity}</Text>
-              ) : null}
-              <Button
-                label="View details"
-                size="compact"
-                onPress={() => router.push(`/visits/${visit.log.log_id}`)}
-              />
-            </Card>
-          );
-        })}
-      </ScrollView>
-    </View>
+        <CardGrid>
+          {logs.slice(1).map((visit) => {
+            const alert = visitAlert(visit);
+            return (
+              <Card key={visit.log.log_id} style={styles.historyCard}>
+                <Text style={[styles.historyName, { color: colors.ink }]}>{visit.customer_name}</Text>
+                <Text style={[styles.historyVitals, { color: colors.ink }]}>{formatVitalsLine(visit.log.vitals_payload)}</Text>
+                <Text style={[styles.meta, { color: colors.inkMuted }]}>
+                  {formatVisitWhen(visit.log.visit_timestamp)} · {visit.worker_name}
+                </Text>
+                {alert.flags.length ? (
+                  <Text style={[styles.meta, { color: colors.warning }]}>{alert.severity}</Text>
+                ) : null}
+                <Button
+                  label="View details"
+                  size="compact"
+                  onPress={() => router.push(`/visits/${visit.log.log_id}`)}
+                />
+              </Card>
+            );
+          })}
+        </CardGrid>
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  nav: {
-    minHeight: 56,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  navBack: { fontFamily, color: "#FFFFFF", fontSize: 16, fontWeight: "600", width: 56 },
-  navTitle: { fontFamily, color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  page: { padding: space.lg, gap: space.md, paddingBottom: 40 },
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
   chips: { gap: 8, paddingVertical: 4 },
   chip: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },

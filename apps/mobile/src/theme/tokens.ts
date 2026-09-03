@@ -4,12 +4,12 @@ export const palette = {
   blue: "#0057B8",
   blueHover: "#004494",
   blueSoft: "#E8F1FB",
-  paper: "#F3F7FB",
+  paper: "#F4F6F8",
   panel: "#FFFFFF",
   white: "#FFFFFF",
-  ink: "#1B2430",
-  inkMuted: "#5B6775",
-  line: "#D5DEE7",
+  ink: "#1A2433",
+  inkMuted: "#5A6573",
+  line: "#D0D7DE",
   danger: "#9B1C1C",
   dangerSoft: "#FEE2E2",
   warning: "#9A3412",
@@ -38,9 +38,9 @@ export const space = {
 };
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
+  sm: 4,
+  md: 6,
+  lg: 8,
 };
 
 export const type = {
@@ -60,9 +60,9 @@ export const fontFamily =
 export const shadow = {
   card: {
     shadowColor: "#0A2540",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
 };
