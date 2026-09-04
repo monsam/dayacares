@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import type { SosIncident, SosSeverity } from "@daya/shared";
 import { listCustomers, listWorkers } from "../../src/api/customers";
 import { createSos, listSos, updateSos } from "../../src/api/sos";
@@ -95,7 +95,7 @@ export default function EmergenciesScreen() {
       title="Emergencies"
       lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
-          Open SOS alerts from family, Care Focus, and Care Givers. Acknowledge, assign, then resolve.
+          In-app notify goes to family and staff. Call family from the contacts — SMS and WhatsApp are not connected.
         </Text>
       }
     >
@@ -193,12 +193,26 @@ function IncidentCard({
       <Text style={[styles.meta, { color: colors.inkMuted }]}>Raised by {incident.raised_by_name}</Text>
       {incident.notes ? <Text style={[styles.meta, { color: colors.inkMuted }]}>{incident.notes}</Text> : null}
       {incident.emergency_contacts.length ? (
-        <Text style={[styles.meta, { color: colors.inkMuted }]}>
-          Contacts:{" "}
-          {incident.emergency_contacts
-            .map((contact) => `${contact.name} ${contact.phone}`)
-            .join(" · ")}
-        </Text>
+        <View style={styles.chips}>
+          {incident.emergency_contacts.map((contact) => (
+            <Chip
+              key={`${contact.name}-${contact.phone}`}
+              label={`Call ${contact.name}`}
+              selected={false}
+              disabled={busy}
+              onPress={() => {
+                void Linking.openURL(`tel:${contact.phone.replace(/\s/g, "")}`);
+              }}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text style={[styles.meta, { color: colors.inkMuted }]}>No family phone on this member.</Text>
+      )}
+      {incident.family_called_at ? (
+        <Text style={[styles.meta, { color: colors.blue }]}>Family called {formatVisitTime(incident.family_called_at)}</Text>
+      ) : incident.status !== "RESOLVED" ? (
+        <Chip label="Mark family called" selected={false} disabled={busy} onPress={() => onPatch({ family_called: true })} />
       ) : null}
       {incident.status !== "RESOLVED" ? (
         <>

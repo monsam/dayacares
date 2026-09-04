@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import type { BillingAccount, SubscriptionStatus } from "@daya/shared";
 import { currentPeriodLabel, formatInr } from "@daya/shared";
 import { createInvoice, getBillingBoard, updateInvoice, updateSubscription } from "../../src/api/billing";
+import { downloadReceipt, sendDunningReminders } from "../../src/api/ops";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiErrorMessage } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
@@ -80,7 +81,7 @@ export default function BillingScreen() {
       title="Billing"
       lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
-          Membership fees by plan: Essential {formatInr(2999)}, Enhanced {formatInr(4999)}, Comprehensive {formatInr(7999)}.
+          Membership fees include 18% GST. Receipts download here. Razorpay checkout is not connected.
         </Text>
       }
     >
@@ -90,6 +91,17 @@ export default function BillingScreen() {
           </Text>
         ) : null}
         {error ? <Text style={[styles.meta, { color: colors.danger }]}>{error}</Text> : null}
+        <Button
+          label="Send due reminders"
+          variant="secondary"
+          disabled={busy}
+          onPress={() => {
+            setError(undefined);
+            sendDunningReminders()
+              .then((result) => setError(`Sent ${result.notified} in-app reminder${result.notified === 1 ? "" : "s"}.`))
+              .catch((err) => setError(apiErrorMessage(err, "Could not send reminders.")));
+          }}
+        />
         {query.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading billing…</Text> : null}
         {query.isError ? (
           <Text style={[styles.meta, { color: colors.danger }]}>Could not load billing. Try again in a moment.</Text>
@@ -155,15 +167,26 @@ function AccountCard({
           </Text>
           <Text style={[styles.meta, { color: colors.inkMuted }]}>
             {invoice.description}
+            {` · taxable ${formatInr(invoice.taxable_inr)} + GST ${invoice.gst_rate}% ${formatInr(invoice.gst_inr)}`}
             {invoice.paid_on ? ` · paid ${invoice.paid_on}` : ` · due ${invoice.due_on}`}
             {invoice.payment_mode ? ` · ${invoice.payment_mode}` : ""}
           </Text>
-          {invoice.status === "DUE" ? (
-            <View style={styles.chips}>
-              <Chip label="Mark paid" selected={false} disabled={busy} onPress={() => onPay(invoice.invoice_id, "PAID")} />
-              <Chip label="Waive" selected={false} disabled={busy} onPress={() => onPay(invoice.invoice_id, "WAIVED")} />
-            </View>
-          ) : null}
+          <View style={styles.chips}>
+            {invoice.status === "DUE" ? (
+              <>
+                <Chip label="Mark paid" selected={false} disabled={busy} onPress={() => onPay(invoice.invoice_id, "PAID")} />
+                <Chip label="Waive" selected={false} disabled={busy} onPress={() => onPay(invoice.invoice_id, "WAIVED")} />
+              </>
+            ) : null}
+            <Chip
+              label="Receipt"
+              selected={false}
+              disabled={busy}
+              onPress={() => {
+                void downloadReceipt(invoice.invoice_id);
+              }}
+            />
+          </View>
         </View>
       ))}
       {!hasPeriod ? (

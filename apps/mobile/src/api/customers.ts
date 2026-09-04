@@ -1,4 +1,5 @@
 import type {
+  CareRecipientFormResponse,
   CareRecipientRegistration,
   CreateCareRecipientResponse,
   CustomerSummary,
@@ -28,4 +29,17 @@ export async function createCareRecipient(
 export async function listWorkers(): Promise<WorkerSummary[]> {
   const { data } = await api.get<ListWorkersResponse>("/workers");
   return data.workers;
+}
+
+export async function getCareRecipientForm(customerId: string): Promise<CareRecipientFormResponse> {
+  const { data } = await api.get<CareRecipientFormResponse>(`/customers/${customerId}/form`);
+  return data;
+}
+
+export async function updateCareRecipient(
+  customerId: string,
+  registration: CareRecipientRegistration,
+): Promise<CreateCareRecipientResponse> {
+  const { data } = await api.patch<CreateCareRecipientResponse>(`/customers/${customerId}`, { registration });
+  return data;
 }

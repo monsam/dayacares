@@ -49,6 +49,11 @@ export default function MembersScreen() {
             <Text style={[styles.plan, { color: colors.blue }]}>
               {member.plan ?? "Plan"} · {member.subscription_status}
             </Text>
+            <Button
+              label="Edit registration"
+              variant="secondary"
+              onPress={() => router.push(`/admin/register?customerId=${member.customer_id}`)}
+            />
           </Card>
         ))}
       </CardGrid>

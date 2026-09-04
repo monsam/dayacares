@@ -3,8 +3,10 @@ import cors from "cors";
 import express, { type Request, type Response } from "express";
 import { config } from "./config";
 import { handler as createHealthVisitLog } from "./handlers/createHealthVisitLog";
+import { handler as updateHealthVisitLog } from "./handlers/updateHealthVisitLog";
 import { handler as getHomeSummary } from "./handlers/getHomeSummary";
 import { handler as createCareRecipient } from "./handlers/createCareRecipient";
+import { getHandler as getCareRecipientForm, patchHandler as updateCareRecipient } from "./handlers/updateCareRecipient";
 import { getCustomerHandler, listCustomersHandler } from "./handlers/listCustomers";
 import { handler as listWorkers } from "./handlers/listWorkers";
 import { handler as listUsers } from "./handlers/listUsers";
@@ -18,7 +20,11 @@ import { handler as assignWorker } from "./handlers/assignWorker";
 import { handler as unassignWorker } from "./handlers/unassignWorker";
 import { handler as listSchedules } from "./handlers/listSchedules";
 import { handler as createSchedule } from "./handlers/createSchedule";
+import { handler as generatePlanWeek } from "./handlers/generatePlanWeek";
 import { handler as updateSchedule } from "./handlers/updateSchedule";
+import { handler as setPrimaryWorker } from "./handlers/setPrimaryWorker";
+import { csvHandler as downloadOpsReport, jsonHandler as getOpsReport } from "./handlers/getOpsReport";
+import { handler as sendDunning } from "./handlers/sendDunning";
 import { handler as getBillingBoard } from "./handlers/getBillingBoard";
 import { handler as createInvoice } from "./handlers/createInvoice";
 import { handler as updateInvoice } from "./handlers/updateInvoice";
@@ -34,10 +40,12 @@ import { handler as getNotification } from "./handlers/getNotification";
 import { handler as updateNotification } from "./handlers/updateNotification";
 import { blankForm, filledForm, listForms } from "./handlers/downloadForm";
 import { requireCaller } from "./lib/auth";
-import { backfillDefaultPasswords } from "./lib/db";
+import { backfillDefaultPasswords, getInvoice } from "./lib/db";
 import { HttpError } from "./lib/http";
 import { pingDatabase, pool } from "./lib/mysql";
 import { backfillNotifications, ensureNotificationsTable } from "./lib/notifications";
+import { ensureOpsHardening } from "./lib/opsHardening";
+import { buildReceiptPdf } from "./lib/pdfForms";
 
 const app = express();
 app.use(cors());
@@ -205,12 +213,35 @@ app.delete("/allocations/:allocationId", async (req, res) => {
   );
 });
 
+app.post("/allocations/:allocationId/primary", async (req, res) => {
+  await send(
+    res,
+    await invoke(setPrimaryWorker, toEvent(req, { pathParameters: { allocationId: req.params.allocationId } })),
+  );
+});
+
 app.get("/schedules", async (req, res) => {
   await send(res, await invoke(listSchedules, toEvent(req)));
 });
 
 app.post("/schedules", async (req, res) => {
   await send(res, await invoke(createSchedule, toEvent(req)));
+});
+
+app.post("/schedules/plan-week", async (req, res) => {
+  await send(res, await invoke(generatePlanWeek, toEvent(req)));
+});
+
+app.get("/ops-report", async (req, res) => {
+  await send(res, await invoke(getOpsReport, toEvent(req)));
+});
+
+app.get("/ops-report.csv", async (req, res) => {
+  await send(res, await invoke(downloadOpsReport, toEvent(req)));
+});
+
+app.post("/billing/dunning", async (req, res) => {
+  await send(res, await invoke(sendDunning, toEvent(req)));
 });
 
 app.patch("/schedules/:scheduleId", async (req, res) => {
@@ -257,6 +288,20 @@ app.patch("/sos/:incidentId", async (req, res) => {
   );
 });
 
+app.get("/customers/:customerId/form", async (req, res) => {
+  await send(
+    res,
+    await invoke(getCareRecipientForm, toEvent(req, { pathParameters: { customerId: req.params.customerId } })),
+  );
+});
+
+app.patch("/customers/:customerId", async (req, res) => {
+  await send(
+    res,
+    await invoke(updateCareRecipient, toEvent(req, { pathParameters: { customerId: req.params.customerId } })),
+  );
+});
+
 app.get("/customers/:customerId", async (req, res) => {
   await send(
     res,
@@ -277,6 +322,13 @@ app.get("/health-visit-logs/:logId", async (req, res) => {
 
 app.post("/health-visit-logs", async (req, res) => {
   await send(res, await invoke(createHealthVisitLog, toEvent(req)));
+});
+
+app.patch("/health-visit-logs/:logId", async (req, res) => {
+  await send(
+    res,
+    await invoke(updateHealthVisitLog, toEvent(req, { pathParameters: { logId: req.params.logId } })),
+  );
 });
 
 function sendPdf(res: Response, filename: string, bytes: Uint8Array | Buffer) {
@@ -308,6 +360,19 @@ app.get("/forms/:kind/blank", async (req, res) => {
   }
 });
 
+app.get("/invoices/:invoiceId/receipt", async (req, res) => {
+  try {
+    await requireCaller(toEvent(req), ["ADMIN"]);
+    const invoice = await getInvoice(req.params.invoiceId);
+    if (!invoice) throw new HttpError(404, "Invoice was not found.");
+    const file = await buildReceiptPdf(invoice);
+    sendPdf(res, file.filename, file.bytes);
+  } catch (error) {
+    const status = error instanceof HttpError ? error.statusCode : 500;
+    res.status(status).json({ error: error instanceof Error ? error.message : "Could not download the receipt." });
+  }
+});
+
 app.get("/forms/:kind", async (req, res) => {
   try {
     const file = await filledForm(toEvent(req), req.params.kind);
@@ -326,6 +391,7 @@ const server = app.listen(config.port, async () => {
       console.log(`Set the default login password on ${hashed} existing MySQL users.`);
     }
     await ensureNotificationsTable();
+    await ensureOpsHardening();
     const seeded = await backfillNotifications();
     if (seeded) {
       console.log(`Created ${seeded} in-app notifications from existing SOS and visit alerts.`);

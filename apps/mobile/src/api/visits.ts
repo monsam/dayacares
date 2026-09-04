@@ -4,6 +4,7 @@ import type {
   GetHealthVisitLogResponse,
   HomeVisitSummary,
   ListHealthVisitLogsResponse,
+  UpdateHealthVisitLogRequest,
 } from "@daya/shared";
 import { api } from "./client";
 
@@ -23,5 +24,13 @@ export async function listVisitLogs(customerId?: string): Promise<HomeVisitSumma
 
 export async function getVisitLog(logId: string): Promise<HomeVisitSummary> {
   const { data } = await api.get<GetHealthVisitLogResponse>(`/health-visit-logs/${logId}`);
+  return data.visit;
+}
+
+export async function updateHealthVisitLog(
+  logId: string,
+  payload: UpdateHealthVisitLogRequest,
+): Promise<HomeVisitSummary> {
+  const { data } = await api.patch<GetHealthVisitLogResponse>(`/health-visit-logs/${logId}`, payload);
   return data.visit;
 }

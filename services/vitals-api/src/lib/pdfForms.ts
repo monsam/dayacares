@@ -1,9 +1,13 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ReportFormInfo, ReportFormKind } from "@daya/shared";
+import type { MembershipInvoice, ReportFormInfo, ReportFormKind } from "@daya/shared";
 import { listed } from "@daya/shared";
 import type { FormSource } from "./db";
+
+function formatInrPdf(amount: number) {
+  return `Rs. ${amount.toLocaleString("en-IN")}`;
+}
 
 export const REPORT_FORMS: ReportFormInfo[] = [
   {
@@ -392,6 +396,31 @@ export async function buildFilledForm(kind: ReportFormKind, source: FormSource) 
 export function filledFilename(kind: ReportFormKind, source: FormSource) {
   const who = source.customer?.name?.replace(/\s+/g, "-") ?? "daya";
   return `${kind}-${who}.pdf`;
+}
+
+export async function buildReceiptPdf(invoice: MembershipInvoice) {
+  const doc = await new FormDoc().init();
+  doc.header(`Receipt · ${invoice.period_label}`);
+  doc.section("Membership");
+  doc.field("Care Recipient", invoice.customer_name);
+  doc.field("Plan", invoice.plan);
+  doc.field("Invoice", invoice.invoice_id);
+  doc.field("Description", invoice.description);
+  doc.section("GST (included)");
+  doc.field("Taxable", formatInrPdf(invoice.taxable_inr));
+  doc.field(`GST ${invoice.gst_rate}%`, formatInrPdf(invoice.gst_inr));
+  doc.field("Total", formatInrPdf(invoice.amount_inr));
+  doc.section("Payment");
+  doc.field("Status", invoice.status);
+  doc.field("Due on", invoice.due_on);
+  doc.field("Paid on", invoice.paid_on);
+  doc.field("Mode", invoice.payment_mode);
+  doc.field("Reference", invoice.reference);
+  doc.note("This is a centre receipt. Razorpay checkout is not connected.");
+  return {
+    bytes: await doc.bytes(),
+    filename: `receipt-${invoice.customer_name.replace(/\s+/g, "-")}-${invoice.period_label.replace(/\s+/g, "-")}.pdf`,
+  };
 }
 
 export function readBlankForm(kind: ReportFormKind) {

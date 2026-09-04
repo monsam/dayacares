@@ -7,6 +7,7 @@ import {
   listCustomersForUser,
   listRecentVisitSummaries,
   listOpenSosForUser,
+  listSchedulesForUser,
   listUpcomingSchedules,
 } from "../lib/db";
 import { handleError, HttpError, json } from "../lib/http";
@@ -20,10 +21,15 @@ async function handle(event: APIGatewayProxyEvent) {
     throw new HttpError(403, "User profile is not provisioned.");
   }
 
+  const date = event.queryStringParameters?.date?.trim();
   const customers = await listCustomersForUser(user);
   const logs = await listRecentVisitSummaries(customers.map((customer) => customer.customer_id));
   const team = await listCareTeam(user, customers);
-  const schedules = await listUpcomingSchedules(user);
+  const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().slice(0, 10);
+  const schedules =
+    user.role === "ADMIN" || user.role === "WORKER"
+      ? (await listSchedulesForUser(user, day)).filter((visit) => visit.status !== "CANCELLED")
+      : await listUpcomingSchedules(user);
   const open_sos = await listOpenSosForUser(user);
   const response: HomeSummaryResponse = { customers, logs, team, schedules, open_sos };
   return json(200, response);

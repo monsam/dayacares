@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import type { CareRecipientRegistration, RegistrationContact } from "@daya/shared";
-import { createCareRecipient, listWorkers } from "../../api/customers";
+import { createCareRecipient, getCareRecipientForm, listWorkers, updateCareRecipient } from "../../api/customers";
 import { useAuth } from "../../auth/AuthContext";
 import { useTheme } from "../../theme/ThemeContext";
 import { fontFamily, space, type } from "../../theme/tokens";
@@ -66,9 +66,22 @@ export function RegisterCareRecipientWizard() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { session, ready } = useAuth();
+  const { customerId } = useLocalSearchParams<{ customerId?: string }>();
+  const editingId = typeof customerId === "string" ? customerId : undefined;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<CareRecipientRegistration>(emptyForm);
   const [error, setError] = useState<string>();
+  const existing = useQuery({
+    queryKey: ["member-form", editingId],
+    queryFn: () => getCareRecipientForm(editingId as string),
+    enabled: Boolean(session?.role === "ADMIN" && editingId),
+  });
+
+  useEffect(() => {
+    if (existing.data?.registration) {
+      setForm(existing.data.registration);
+    }
+  }, [existing.data]);
 
   const workersQuery = useQuery({
     queryKey: ["workers"],
@@ -83,18 +96,22 @@ export function RegisterCareRecipientWizard() {
   }, [ready, session, router]);
 
   const mutation = useMutation({
-    mutationFn: () => createCareRecipient(form),
+    mutationFn: () =>
+      editingId ? updateCareRecipient(editingId, form) : createCareRecipient(form),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["home"] });
+      queryClient.invalidateQueries({ queryKey: ["member-form"] });
       const familyLine = result.family
         ? result.family.linked_existing
           ? ` Linked existing family login ${result.family.username}.`
           : ` Created family user ${result.family.username} (password Daya@2026).`
         : "";
       Alert.alert(
-        "Care Recipient registered",
-        `${result.customer.name} is now ${result.customer.customer_id} on the ${result.customer.plan} plan.${familyLine}`,
+        editingId ? "Care Recipient updated" : "Care Recipient registered",
+        editingId
+          ? `${result.customer.name} was saved on the ${result.customer.plan} plan.`
+          : `${result.customer.name} is now ${result.customer.customer_id} on the ${result.customer.plan} plan.${familyLine}`,
         [{ text: "View members", onPress: () => router.replace("/admin/members") }],
       );
     },
@@ -120,8 +137,10 @@ export function RegisterCareRecipientWizard() {
   };
 
   return (
-    <PageShell title="Register" backTo="/admin/members" backLabel="Members" maxWidth={FORM_MAX}>
-        <Text style={[styles.kicker, { color: colors.blue }]}>Care Recipient Registration Form</Text>
+    <PageShell title={editingId ? "Edit member" : "Register"} backTo="/admin/members" backLabel="Members" maxWidth={FORM_MAX}>
+        <Text style={[styles.kicker, { color: colors.blue }]}>
+          {editingId ? "Edit saved registration" : "Care Recipient Registration Form"}
+        </Text>
         <Text style={[styles.title, { color: colors.ink }]}>{STEPS[step]}</Text>
         <Text style={[styles.progress, { color: colors.inkMuted }]}>
           Step {step + 1} of {STEPS.length}
@@ -163,7 +182,7 @@ export function RegisterCareRecipientWizard() {
             <Button label="Continue" onPress={next} />
           ) : (
             <Button
-              label={mutation.isPending ? "Saving…" : "Submit registration"}
+              label={mutation.isPending ? "Saving…" : editingId ? "Save changes" : "Submit registration"}
               onPress={() => {
                 const lastError = validateStep(6, form);
                 if (lastError) {

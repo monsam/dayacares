@@ -135,7 +135,7 @@ export default function UsersScreen() {
   const confirmDelete = (user: DirectoryUser) => {
     Alert.alert(
       `Delete ${user.full_name}?`,
-      "This also removes their assignments, schedules, and visit logs.",
+      "Delete is only allowed when this person has no visit history. If they have records, Block them instead.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Delete", style: "destructive", onPress: () => remove.mutate(user.user_id) },
@@ -186,6 +186,7 @@ export default function UsersScreen() {
                   <Text style={[styles.name, { color: colors.ink }]}>{user.full_name}</Text>
                   <Text style={[styles.meta, { color: colors.blue }]}>
                     {ROLE_LABEL[user.role]}
+                    {user.account_status === "BLOCKED" ? " · BLOCKED" : ""}
                     {user.username ? ` · login ${user.username}` : ""}
                   </Text>
                   <Text style={[styles.meta, { color: colors.inkMuted }]}>{user.phone_number}</Text>
@@ -218,6 +219,28 @@ export default function UsersScreen() {
                           setEditDraft(draftFromUser(user));
                           setError(undefined);
                           setNotice(undefined);
+                        }}
+                      />
+                      <Button
+                        label={user.account_status === "BLOCKED" ? "Unblock" : "Block"}
+                        variant="secondary"
+                        size="compact"
+                        disabled={save.isPending || user.username === session?.username}
+                        onPress={() => {
+                          setNotice(undefined);
+                          setError(undefined);
+                          updateUser(user.user_id, {
+                            account_status: user.account_status === "BLOCKED" ? "ACTIVE" : "BLOCKED",
+                          })
+                            .then(async () => {
+                              setNotice(
+                                user.account_status === "BLOCKED"
+                                  ? `${user.full_name} can sign in again.`
+                                  : `${user.full_name} is blocked. Visit history stays.`,
+                              );
+                              await refresh();
+                            })
+                            .catch((err) => setError(apiErrorMessage(err, "Could not update this account.")));
                         }}
                       />
                       <Button

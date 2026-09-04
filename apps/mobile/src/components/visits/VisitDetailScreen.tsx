@@ -8,6 +8,7 @@ import { formatVisitWhen, observationRows, visitAlert, vitalRows } from "../../l
 import { monitoringRows } from "@daya/shared";
 import { useTheme } from "../../theme/ThemeContext";
 import { fontFamily, type } from "../../theme/tokens";
+import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { FORM_MAX, PageShell } from "../../ui/Page";
 import { ReportFormsCard } from "./ReportFormsCard";
@@ -53,6 +54,13 @@ export function VisitDetailScreen() {
                 Recorded by {visit.worker_name} · {visit.address}
               </Text>
               <Text style={[styles.meta, { color: colors.inkMuted }]}>Source {visit.log.entry_source.replaceAll("_", " ")}</Text>
+              {session?.role === "ADMIN" || session?.role === "WORKER" ? (
+                <Button
+                  label="Edit this visit"
+                  variant="secondary"
+                  onPress={() => router.push(`/visits/edit/${visit.log.log_id}`)}
+                />
+              ) : null}
               {alert?.flags.length ? (
                 <Text style={[styles.meta, { color: colors.warning }]}>
                   {alert.severity}: {alert.flags.join(", ")}

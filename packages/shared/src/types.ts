@@ -15,6 +15,9 @@ export type SugarTestType = (typeof SUGAR_TEST_TYPES)[number];
 export const SUBSCRIPTION_STATUSES = ["ACTIVE", "PAUSED", "INACTIVE"] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
+export const ACCOUNT_STATUSES = ["ACTIVE", "BLOCKED"] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+
 export const PUSH_PLATFORMS = ["ANDROID", "IOS", "WEB"] as const;
 export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
 
@@ -31,6 +34,8 @@ export interface User {
   email: string;
   phone_number: string;
   role: UserRole;
+  account_status: AccountStatus;
+  max_daily_visits: number;
   device_tokens: DeviceToken[];
   created_at: string;
 }
@@ -219,6 +224,12 @@ export interface CreateHealthVisitLogRequest {
   visit_photo_s3_url?: string;
 }
 
+export interface UpdateHealthVisitLogRequest {
+  vitals_payload?: VitalsPayload;
+  qualitative_observations?: QualitativeObservations;
+  visit_photo_s3_url?: string;
+}
+
 export interface CreateHealthVisitLogResponse {
   log: HealthVisitLog;
   alert: VisitAlertResult;
@@ -377,6 +388,7 @@ export interface CreateCareRecipientResponse {
 export interface WorkerSummary {
   user_id: string;
   name: string;
+  max_daily_visits: number;
 }
 
 export interface ListWorkersResponse {
@@ -390,6 +402,8 @@ export interface DirectoryUser {
   email: string;
   phone_number: string;
   role: UserRole;
+  account_status: AccountStatus;
+  max_daily_visits?: number;
   created_at: string;
   address?: string;
 }
@@ -418,6 +432,8 @@ export interface UpdateDirectoryUserRequest {
   role?: UserRole;
   address?: string;
   password?: string;
+  account_status?: AccountStatus;
+  max_daily_visits?: number;
 }
 
 export interface UpdateOwnProfileRequest {
@@ -428,7 +444,7 @@ export interface UpdateOwnProfileRequest {
   address?: string;
 }
 
-export const NOTIFICATION_KINDS = ["SOS", "VISIT_ALERT"] as const;
+export const NOTIFICATION_KINDS = ["SOS", "VISIT_ALERT", "DUNNING"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export interface AppNotification {
@@ -436,7 +452,7 @@ export interface AppNotification {
   kind: NotificationKind;
   title: string;
   body: string;
-  related_type?: "SOS" | "VISIT";
+  related_type?: "SOS" | "VISIT" | "INVOICE";
   related_id?: string;
   customer_id?: string;
   href?: string;
@@ -462,11 +478,14 @@ export interface RoutedMember {
   allocation_id?: string;
   worker_id?: string;
   worker_name?: string;
+  is_primary?: boolean;
 }
 
 export interface WorkerCaseload {
   user_id: string;
   name: string;
+  max_daily_visits: number;
+  today_visits: number;
   members: RoutedMember[];
 }
 
@@ -539,6 +558,9 @@ export interface MembershipInvoice {
   period_label: string;
   description: string;
   amount_inr: number;
+  taxable_inr: number;
+  gst_rate: number;
+  gst_inr: number;
   status: InvoiceStatus;
   due_on: string;
   paid_on?: string;
@@ -600,7 +622,62 @@ export interface SosIncident {
   assigned_worker_id?: string;
   assigned_worker_name?: string;
   created_at: string;
+  family_called_at?: string;
   emergency_contacts: EmergencyContact[];
+}
+
+export interface CareRecipientFormResponse {
+  customer: CustomerSummary;
+  registration: CareRecipientRegistration;
+}
+
+export interface UpdateCareRecipientRequest {
+  registration: CareRecipientRegistration;
+}
+
+export interface GeneratePlanWeekRequest {
+  date?: string;
+}
+
+export interface GeneratePlanWeekResponse {
+  date_from: string;
+  date_to: string;
+  created: VisitSchedule[];
+  skipped: Array<{ customer_id: string; name: string; reason: string }>;
+}
+
+export interface OpsMissedVisit {
+  schedule_id: string;
+  scheduled_for: string;
+  customer_name: string;
+  worker_name: string;
+  visit_type: VisitType;
+  plan?: string;
+}
+
+export interface OpsPlanSla {
+  customer_id: string;
+  name: string;
+  plan?: string;
+  target: number;
+  completed: number;
+  scheduled: number;
+  missed: number;
+}
+
+export interface OpsReportResponse {
+  timezone: string;
+  date_from: string;
+  date_to: string;
+  missed_visits: OpsMissedVisit[];
+  plan_sla: OpsPlanSla[];
+  open_sos: number;
+  due_inr: number;
+  due_count: number;
+}
+
+export interface DunningResponse {
+  notified: number;
 }
 
 export interface ListSosResponse {
@@ -617,6 +694,7 @@ export interface UpdateSosRequest {
   status?: SosStatus;
   assigned_worker_id?: string | null;
   notes?: string;
+  family_called?: boolean;
 }
 
 export const REPORT_FORM_KINDS = [

@@ -48,7 +48,8 @@ import {
   validateVitalsPayload,
 } from "@daya/shared";
 import { detectEntrySource } from "../../api/client";
-import { createHealthVisitLog } from "../../api/visits";
+import { createHealthVisitLog, updateHealthVisitLog } from "../../api/visits";
+import type { HomeVisitSummary } from "@daya/shared";
 import { createId } from "../../lib/id";
 import { apiErrorMessage } from "../../lib/scheduleDisplay";
 import {
@@ -102,6 +103,21 @@ export interface GuidedVitalsFormProps {
   address: string;
   workerName: string;
   plan?: string;
+  existingLog?: HomeVisitSummary;
+}
+
+function vitalsFromLog(log: HomeVisitSummary["log"]): Record<string, string> {
+  return {
+    log_id: log.log_id,
+    systolic_bp: String(log.vitals_payload.systolic_bp ?? ""),
+    diastolic_bp: String(log.vitals_payload.diastolic_bp ?? ""),
+    pulse_bpm: String(log.vitals_payload.pulse_bpm ?? ""),
+    spo2_percent: String(log.vitals_payload.spo2_percent ?? ""),
+    blood_sugar_mgdl: String(log.vitals_payload.blood_sugar_mgdl ?? ""),
+    sugar_test_type: log.vitals_payload.sugar_test_type ?? "",
+    temperature_f: String(log.vitals_payload.temperature_f ?? ""),
+    weight_kg: String(log.vitals_payload.weight_kg ?? ""),
+  };
 }
 
 export function GuidedVitalsForm({
@@ -110,6 +126,7 @@ export function GuidedVitalsForm({
   address,
   workerName,
   plan,
+  existingLog,
 }: GuidedVitalsFormProps) {
   const { colors } = useTheme();
   const router = useRouter();
@@ -119,13 +136,17 @@ export function GuidedVitalsForm({
   const [submitted, setSubmitted] = useState<CreateHealthVisitLogResponse | "queued">();
   const [submitError, setSubmitError] = useState<string>();
   const [photoUri, setPhotoUri] = useState<string>();
-  const [vitals, setVitals] = useState<Record<string, string>>({});
-  const [observations, setObservations] = useState<QualitativeObservations>({
-    dietary_compliance: "UNKNOWN",
-    physical_mobility: "INDEPENDENT",
-    action_items_needed: false,
-    monitoring: {},
-  });
+  const [vitals, setVitals] = useState<Record<string, string>>(() =>
+    existingLog ? vitalsFromLog(existingLog.log) : {},
+  );
+  const [observations, setObservations] = useState<QualitativeObservations>(
+    existingLog?.log.qualitative_observations ?? {
+      dietary_compliance: "UNKNOWN",
+      physical_mobility: "INDEPENDENT",
+      action_items_needed: false,
+      monitoring: {},
+    },
+  );
 
   const mon = observations.monitoring ?? {};
   const setMon = (patch: Partial<HomeVisitMonitoring>) => {
@@ -168,6 +189,7 @@ export function GuidedVitalsForm({
   });
 
   useEffect(() => {
+    if (existingLog) return;
     loadVisitDraft(customerId).then((draft) => {
       if (!draft) {
         setVitals((current) => ({ ...current, log_id: current.log_id ?? createId() }));
@@ -187,13 +209,12 @@ export function GuidedVitalsForm({
       setObservations(draft.qualitative_observations ?? { monitoring: {} });
       setPhotoUri(draft.visit_photo_s3_url);
     });
-  }, [customerId]);
+  }, [customerId, existingLog]);
 
   useEffect(() => {
-    if (payload.log_id) {
-      saveVisitDraft(customerId, payload);
-    }
-  }, [customerId, payload]);
+    if (existingLog || !payload.log_id) return;
+    saveVisitDraft(customerId, payload);
+  }, [customerId, existingLog, payload]);
 
   useEffect(() => {
     return subscribeToReconnect(() => {
@@ -211,13 +232,24 @@ export function GuidedVitalsForm({
         throw new Error(validation.errors.map((error) => error.message).join("\n"));
       }
       try {
+        if (existingLog) {
+          const visit = await updateHealthVisitLog(existingLog.log.log_id, {
+            vitals_payload: payload.vitals_payload,
+            qualitative_observations: payload.qualitative_observations,
+            visit_photo_s3_url: payload.visit_photo_s3_url,
+          });
+          return {
+            log: visit.log,
+            alert: { severity: "INFO" as const, flags: [], notified_family_user_ids: [], channels: [] },
+          };
+        }
         return await createHealthVisitLog(payload);
       } catch (error) {
         const status =
           error && typeof error === "object" && "response" in error
             ? (error as { response?: { status?: number } }).response?.status
             : undefined;
-        if (status && status < 500) {
+        if (existingLog || (status && status < 500)) {
           throw error;
         }
         await enqueueVisit(payload);
@@ -230,6 +262,7 @@ export function GuidedVitalsForm({
       await queryClient.invalidateQueries({ queryKey: ["home"] });
       await queryClient.invalidateQueries({ queryKey: ["visits"] });
       await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      await queryClient.invalidateQueries({ queryKey: ["visit"] });
       if (result === "queued") {
         setOfflineNotice("Saved on this device. Daya will sync when the network returns.");
         setSubmitted("queued");
@@ -732,7 +765,7 @@ export function GuidedVitalsForm({
           <Button label="Continue" onPress={next} />
         ) : (
           <Button
-            label={mutation.isPending ? "Saving…" : "Submit visit log"}
+            label={mutation.isPending ? "Saving…" : existingLog ? "Save changes" : "Submit visit log"}
             onPress={() => {
               setSubmitError(undefined);
               mutation.mutate();
