@@ -17,3 +17,7 @@ export async function assignWorker(workerId: string, customerId: string): Promis
 export async function unassignWorker(allocationId: string): Promise<void> {
   await api.delete(`/allocations/${allocationId}`);
 }
+
+export async function setPrimaryWorker(allocationId: string): Promise<void> {
+  await api.post(`/allocations/${allocationId}/primary`);
+}

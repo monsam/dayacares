@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { VisitSchedule, VisitType } from "@daya/shared";
 import { listCustomers, listWorkers } from "../../src/api/customers";
+import { generatePlanWeek } from "../../src/api/ops";
 import { createSchedule, listSchedules, updateSchedule } from "../../src/api/schedules";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiErrorMessage, formatVisitTime, localDateStamp, visitTypeLabel } from "../../src/lib/scheduleDisplay";
@@ -98,14 +99,33 @@ export default function SchedulingScreen() {
       title="Schedule"
       lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
-          Book home visits and welfare calls. Overlapping times for the same Care Giver are blocked.
+          Book home visits and welfare calls in Durgapur time (IST). Overlaps and daily capacity are blocked.
         </Text>
       }
     >
         <Pressable onPress={() => router.push("/admin/routing")} accessibilityRole="button">
           <Text style={[styles.link, { color: colors.blue }]}>Open Worker routing →</Text>
         </Pressable>
-        <TextField label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
+        <TextField label="Date (IST)" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
+        <Button
+          label={create.isPending ? "Working…" : "Auto-book this week from plans"}
+          variant="secondary"
+          disabled={create.isPending}
+          onPress={() => {
+            setError(undefined);
+            generatePlanWeek(date)
+              .then(async (result) => {
+                setError(
+                  result.created.length
+                    ? `Booked ${result.created.length} visit${result.created.length === 1 ? "" : "s"} for ${result.date_from}–${result.date_to}.`
+                    : result.skipped[0]?.reason ?? "Nothing new to book this week.",
+                );
+                await queryClient.invalidateQueries({ queryKey: ["schedules"] });
+                await queryClient.invalidateQueries({ queryKey: ["home"] });
+              })
+              .catch((err) => setError(apiErrorMessage(err, "Could not auto-book the week.")));
+          }}
+        />
 
         {day.isLoading ? <Text style={[styles.meta, { color: colors.inkMuted }]}>Loading the day…</Text> : null}
         {day.isError ? (

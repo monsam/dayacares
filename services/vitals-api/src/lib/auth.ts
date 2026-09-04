@@ -41,6 +41,9 @@ export async function requireCaller(
     if (!user) {
       throw new HttpError(401, "Unknown demo account.");
     }
+    if (user.account_status === "BLOCKED") {
+      throw new HttpError(403, "This account is blocked.");
+    }
     if (!allowed.includes(user.role)) {
       throw new HttpError(403, `Role ${user.role} is not permitted for this action.`);
     }

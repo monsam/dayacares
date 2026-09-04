@@ -23,7 +23,7 @@ interface NotificationRow extends RowDataPacket {
   kind: NotificationKind;
   title: string;
   body: string;
-  related_type: "SOS" | "VISIT" | null;
+  related_type: "SOS" | "VISIT" | "INVOICE" | null;
   related_id: string | null;
   customer_id: string | null;
   read_at: Date | string | null;
@@ -39,9 +39,10 @@ function mysqlDate(value: string): string {
   return new Date(value).toISOString().slice(0, 23).replace("T", " ");
 }
 
-function hrefFor(relatedType?: "SOS" | "VISIT" | null, relatedId?: string | null): string | undefined {
+function hrefFor(relatedType?: "SOS" | "VISIT" | "INVOICE" | null, relatedId?: string | null): string | undefined {
   if (relatedType === "VISIT" && relatedId) return `/visits/${relatedId}`;
   if (relatedType === "SOS") return "/admin/emergencies";
+  if (relatedType === "INVOICE") return "/admin/billing";
   return undefined;
 }
 
@@ -69,7 +70,7 @@ export async function ensureNotificationsTable(): Promise<void> {
     CREATE TABLE IF NOT EXISTS user_notifications (
       notification_id VARCHAR(128) PRIMARY KEY,
       user_id VARCHAR(64) NOT NULL,
-      kind ENUM('SOS', 'VISIT_ALERT') NOT NULL,
+      kind ENUM('SOS', 'VISIT_ALERT', 'DUNNING') NOT NULL,
       title VARCHAR(160) NOT NULL,
       body VARCHAR(500) NOT NULL,
       related_type VARCHAR(32) NULL,
@@ -108,7 +109,7 @@ async function insertNotification(input: {
   kind: NotificationKind;
   title: string;
   body: string;
-  relatedType?: "SOS" | "VISIT";
+  relatedType?: "SOS" | "VISIT" | "INVOICE";
   relatedId?: string;
   customerId?: string;
   createdAt?: string;
@@ -197,6 +198,32 @@ export async function notifyVisitAlert(input: {
       }),
     ),
   );
+}
+
+export async function insertDunningNotifications(input: {
+  customerId: string;
+  customerName: string;
+  amountInr: number;
+  periodLabel: string;
+  invoiceId: string;
+}): Promise<number> {
+  const recipients = await recipientIdsForCustomer(input.customerId);
+  const title = `Fee due · ${input.periodLabel}`;
+  const body = `${input.customerName} has ₹${input.amountInr.toLocaleString("en-IN")} due for ${input.periodLabel}. Pay at the centre or mark paid on Billing.`;
+  await Promise.all(
+    recipients.map((userId) =>
+      insertNotification({
+        userId,
+        kind: "DUNNING",
+        title,
+        body,
+        relatedType: "INVOICE",
+        relatedId: input.invoiceId,
+        customerId: input.customerId,
+      }),
+    ),
+  );
+  return recipients.length;
 }
 
 export async function backfillNotifications(): Promise<number> {

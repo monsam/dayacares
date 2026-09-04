@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CardGrid, PageShell } from "../../ui/Page";
 import { listCustomers } from "../../api/customers";
+import { downloadOpsPack, getOpsReport } from "../../api/ops";
 import { listVisitLogs } from "../../api/visits";
+import { apiErrorMessage, localDateStamp } from "../../lib/scheduleDisplay";
 import { useAuth } from "../../auth/AuthContext";
+import { formatInr } from "@daya/shared";
 import { formatVisitWhen, formatVitalsLine, visitAlert, vitalRows } from "../../lib/visitDisplay";
 import { useTheme } from "../../theme/ThemeContext";
 import { fontFamily, type } from "../../theme/tokens";
@@ -84,10 +87,13 @@ export function VisitHistoryScreen() {
         ) : null}
 
         {session?.role === "ADMIN" ? (
-          <ReportFormsCard
-            customerId={selectedId || undefined}
-            logId={selectedId ? latest?.log.log_id : undefined}
-          />
+          <>
+            <OpsReportCard />
+            <ReportFormsCard
+              customerId={selectedId || undefined}
+              logId={selectedId ? latest?.log.log_id : undefined}
+            />
+          </>
         ) : null}
 
         {selectedCustomer ? (
@@ -167,6 +173,54 @@ export function VisitHistoryScreen() {
           })}
         </CardGrid>
     </PageShell>
+  );
+}
+
+function OpsReportCard() {
+  const { colors } = useTheme();
+  const [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const to = localDateStamp();
+  const query = useQuery({
+    queryKey: ["ops-report", to],
+    queryFn: () => getOpsReport(undefined, to),
+  });
+  const report = query.data;
+
+  return (
+    <Card style={styles.historyCard}>
+      <Text style={[styles.section, { color: colors.ink }]}>Operations report</Text>
+      <Text style={[styles.meta, { color: colors.inkMuted }]}>
+        Missed visits, plan SLA, and dues for this week in Durgapur time.
+      </Text>
+      {report ? (
+        <>
+          <Text style={[styles.historyVitals, { color: colors.ink }]}>
+            {report.missed_visits.length} missed · {report.open_sos} open SOS · {report.due_count} due ({formatInr(report.due_inr)})
+          </Text>
+          {report.plan_sla.slice(0, 5).map((row) => (
+            <Text key={row.customer_id} style={[styles.meta, { color: colors.inkMuted }]}>
+              {row.name}: {row.completed}/{row.target} done
+              {row.missed ? ` · ${row.missed} missed` : ""}
+              {row.scheduled ? ` · ${row.scheduled} still booked` : ""}
+            </Text>
+          ))}
+        </>
+      ) : null}
+      {error ? <Text style={[styles.meta, { color: colors.danger }]}>{error}</Text> : null}
+      <Button
+        label={busy ? "Preparing…" : "Download ops pack"}
+        variant="secondary"
+        disabled={busy}
+        onPress={() => {
+          setError(undefined);
+          setBusy(true);
+          downloadOpsPack(undefined, to)
+            .catch((err) => setError(apiErrorMessage(err, "Could not export the ops pack.")))
+            .finally(() => setBusy(false));
+        }}
+      />
+    </Card>
   );
 }
 

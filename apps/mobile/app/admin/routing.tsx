@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import type { RoutedMember, WorkerCaseload } from "@daya/shared";
-import { assignWorker, getRoutingBoard, unassignWorker } from "../../src/api/routing";
+import { assignWorker, getRoutingBoard, setPrimaryWorker, unassignWorker } from "../../src/api/routing";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiErrorMessage } from "../../src/lib/scheduleDisplay";
 import { useTheme } from "../../src/theme/ThemeContext";
@@ -63,7 +63,7 @@ export default function WorkerRoutingScreen() {
       title="Routing"
       lead={
         <Text style={[styles.lead, { color: colors.inkMuted }]}>
-          Assign Care Givers to Care Recipients. Address is the route hint for the day’s schedule.
+          Assign a primary Care Giver, keep daily capacity in view, and open the area map. Overlaps still block double-booking.
         </Text>
       }
     >
@@ -101,7 +101,19 @@ export default function WorkerRoutingScreen() {
               <Text style={[styles.meta, { color: colors.blue }]}>
                 {worker.members.length} on caseload
                 {worker.members.length ? ` · ${routeHint(worker.members)}` : ""}
+                {` · ${worker.today_visits}/${worker.max_daily_visits} visits today`}
               </Text>
+              {worker.members[0] ? (
+                <Pressable
+                  onPress={() =>
+                    Linking.openURL(
+                      `https://www.openstreetmap.org/search?query=${encodeURIComponent(`${worker.members[0].address}, Durgapur, India`)}`,
+                    )
+                  }
+                >
+                  <Text style={[styles.link, { color: colors.blue }]}>Open area map →</Text>
+                </Pressable>
+              ) : null}
               {worker.members.length === 0 ? (
                 <Text style={[styles.meta, { color: colors.inkMuted }]}>No members routed to this Care Giver yet.</Text>
               ) : null}
@@ -113,6 +125,11 @@ export default function WorkerRoutingScreen() {
                   busy={busy}
                   onAssign={(workerId) => assign.mutate({ workerId, customerId: member.customer_id })}
                   onRemove={member.allocation_id ? () => remove.mutate(member.allocation_id as string) : undefined}
+                  onPrimary={
+                    member.allocation_id && !member.is_primary
+                      ? () => setPrimaryWorker(member.allocation_id as string).then(() => queryClient.invalidateQueries({ queryKey: ["routing"] }))
+                      : undefined
+                  }
                 />
               ))}
             </Card>
@@ -137,17 +154,22 @@ function MemberRow({
   busy,
   onAssign,
   onRemove,
+  onPrimary,
 }: {
   member: RoutedMember;
   workers: WorkerCaseload[];
   busy: boolean;
   onAssign: (workerId: string) => void;
   onRemove?: () => void;
+  onPrimary?: () => void;
 }) {
   const { colors } = useTheme();
   return (
     <View style={styles.member}>
-      <Text style={[styles.name, { color: colors.ink }]}>{member.name}</Text>
+      <Text style={[styles.name, { color: colors.ink }]}>
+        {member.name}
+        {member.is_primary ? " · primary" : ""}
+      </Text>
       <Text style={[styles.meta, { color: colors.inkMuted }]}>{member.address}</Text>
       <Text style={[styles.meta, { color: colors.blue }]}>
         {member.plan ?? "Plan"} · {member.subscription_status}
@@ -168,6 +190,7 @@ function MemberRow({
             />
           );
         })}
+        {onPrimary ? <Chip label="Make primary" selected={false} disabled={busy} onPress={onPrimary} /> : null}
       </View>
     </View>
   );

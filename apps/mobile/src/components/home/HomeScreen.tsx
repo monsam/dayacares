@@ -3,18 +3,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
-import type { HomeSummaryResponse, HomeVisitSummary } from "@daya/shared";
 import { getHomeSummary } from "../../api/home";
 import { createSos } from "../../api/sos";
 import { useAuth } from "../../auth/AuthContext";
 import { caregiverEmails, openCaregiverMailto } from "../../lib/messageEmail";
-import { apiErrorMessage, EMPTY_CARE_FOCUS, formatVisitTime, LOAD_FAILED, LOADING_COPY, visitTypeLabel } from "../../lib/scheduleDisplay";
-import { formatVitalsLine } from "../../lib/visitDisplay";
+import { apiErrorMessage, EMPTY_CARE_FOCUS, LOAD_FAILED, LOADING_COPY } from "../../lib/scheduleDisplay";
 import { fontFamily } from "../../theme/tokens";
 import { AppHeader } from "../../ui/AppHeader";
 import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/TextField";
-import { chromeForAccount, type HomeFeedItem } from "./roleHome";
+import { chromeForAccount, feedForRole, sidebarForRole, type HomeFeedItem } from "./roleHome";
 
 export function HomeScreen() {
   const router = useRouter();
@@ -48,7 +46,8 @@ export function HomeScreen() {
   }
 
   const home = chromeForAccount(session);
-  const feed = feedFromSummary(summary.data, session.role);
+  const feed = feedForRole(session.role, summary.data);
+  const sidebar = sidebarForRole(session.role, summary.data);
 
   const sendSos = () => {
     setSosState("sending");
@@ -179,7 +178,7 @@ export function HomeScreen() {
                 accessibilityLabel={action.label}
                 style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}
               >
-                <Ionicons name={action.icon} size={28} color="#0057B8" />
+                <Ionicons name={action.icon} size={40} color="#0057B8" />
                 <Text style={styles.actionLabel}>{action.label}</Text>
               </Pressable>
             ))}
@@ -213,17 +212,29 @@ export function HomeScreen() {
               <Pressable
                 style={styles.viewAll}
                 accessibilityRole="link"
-                onPress={() => onAction("/visits")}
+                onPress={() =>
+                  onAction(
+                    session.role === "WORKER"
+                      ? "/worker/schedule"
+                      : "/visits",
+                  )
+                }
               >
                 <Ionicons name="shield-checkmark" size={16} color="#0057B8" />
-                <Text style={styles.viewAllText}>View all visit history</Text>
+                <Text style={styles.viewAllText}>
+                  {session.role === "ADMIN"
+                    ? "Open reports"
+                    : session.role === "WORKER"
+                      ? "Open today's route"
+                      : "View visit history"}
+                </Text>
               </Pressable>
             </View>
           </View>
 
           <View style={styles.sidebar}>
             <Text style={styles.sidebarTitle}>{home.sidebarTitle}</Text>
-            {(summary.data?.team ?? []).map((person) => (
+            {sidebar.map((person) => (
               <View key={person.user_id} style={styles.person}>
                 <View style={styles.personAvatar}>
                   <Text style={styles.personInitials}>{person.initials}</Text>
@@ -234,7 +245,7 @@ export function HomeScreen() {
                 </View>
               </View>
             ))}
-            {summary.data && summary.data.team.length === 0 ? (
+            {summary.data && sidebar.length === 0 ? (
               <Text style={styles.empty}>{EMPTY_CARE_FOCUS}</Text>
             ) : null}
             <Pressable accessibilityRole="link" onPress={() => onAction(home.sidebarRoute)}>
@@ -247,99 +258,13 @@ export function HomeScreen() {
   );
 }
 
-function visitRoute(visit: HomeVisitSummary) {
-  return `/visits/${visit.log.log_id}`;
-}
-
-function feedFromSummary(
-  summary: HomeSummaryResponse | undefined,
-  role: string,
-): HomeFeedItem[] {
-  if (!summary) return [];
-
-  const scheduleRoute = role === "ADMIN" ? "/admin/schedule" : role === "WORKER" ? "/worker/schedule" : "/visits";
-  const items: HomeFeedItem[] = [
-    {
-      icon: "users",
-      kicker: "Care Focus",
-      title:
-        summary.customers.length === 1
-          ? summary.customers[0].name
-          : `${summary.customers.length} people on this account`,
-      body:
-        summary.customers.length === 0
-          ? EMPTY_CARE_FOCUS
-          : summary.customers.map((customer) => `${customer.name} · ${customer.address}`).join("\n"),
-      primary: role === "WORKER" ? "Open list" : "View history",
-      primaryRoute: role === "WORKER" ? "/worker/clients" : "/visits",
-    },
-  ];
-
-  if (summary.open_sos?.length) {
-    const first = summary.open_sos[0];
-    items.unshift({
-      icon: "alert",
-      kicker: "Emergencies",
-      title: `${first.customer_name ?? "SOS"} · ${first.status}`,
-      body: summary.open_sos
-        .map((incident) => `${incident.customer_name ?? "SOS"} · ${incident.severity} · ${incident.status}`)
-        .join("\n"),
-      primary: role === "ADMIN" ? "Open emergencies" : "View history",
-      primaryRoute: role === "ADMIN" ? "/admin/emergencies" : "/visits",
-    });
-  }
-
-  if (summary.schedules?.length) {
-    const next = summary.schedules[0];
-    items.unshift({
-      icon: "calendar",
-      kicker: "Upcoming visits",
-      title: `${formatVisitTime(next.scheduled_for)} · ${next.customer_name}`,
-      body: summary.schedules
-        .map(
-          (visit) =>
-            `${formatVisitTime(visit.scheduled_for)} ${visit.customer_name} · ${visitTypeLabel(visit.visit_type)} · ${visit.worker_name}`,
-        )
-        .join("\n"),
-      primary: role === "WORKER" ? "Open today's route" : "Open schedule",
-      primaryRoute: scheduleRoute,
-    });
-  }
-
-  if (summary.logs.length === 0) {
-    items.push({
-      icon: "ok",
-      kicker: "Updates",
-      title: "No visit logs yet",
-      body: "New vitals will appear here after a Care Giver submits a visit.",
-      primary: role === "WORKER" ? "Start a visit" : "View history",
-      primaryRoute: role === "WORKER" ? "/worker/clients" : "/visits",
-    });
-    return items;
-  }
-
-  for (const visit of summary.logs) {
-    const when = new Date(visit.log.visit_timestamp).toLocaleString();
-    items.push({
-      icon: "health",
-      kicker: visit.customer_name,
-      title: formatVitalsLine(visit.log.vitals_payload),
-      body: `Recorded by ${visit.worker_name} on ${when}.`,
-      primary: "View details",
-      primaryRoute: visitRoute(visit),
-    });
-  }
-
-  return items;
-}
-
 function FeedIcon({ name }: { name: HomeFeedItem["icon"] }) {
-  if (name === "ok") return <Ionicons name="checkmark-circle" size={22} color="#2E7D57" />;
-  if (name === "calendar") return <Ionicons name="calendar-outline" size={22} color="#0057B8" />;
-  if (name === "health") return <MaterialCommunityIcons name="heart-pulse" size={22} color="#0057B8" />;
-  if (name === "billing") return <Ionicons name="card-outline" size={22} color="#0057B8" />;
-  if (name === "users") return <Ionicons name="people-outline" size={22} color="#0057B8" />;
-  return <Ionicons name="alert-circle" size={22} color="#B42318" />;
+  if (name === "ok") return <Ionicons name="checkmark-circle" size={26} color="#2E7D57" />;
+  if (name === "calendar") return <Ionicons name="calendar" size={26} color="#0057B8" />;
+  if (name === "health") return <MaterialCommunityIcons name="heart-pulse" size={26} color="#0057B8" />;
+  if (name === "billing") return <Ionicons name="card" size={26} color="#0057B8" />;
+  if (name === "users") return <Ionicons name="people" size={26} color="#0057B8" />;
+  return <Ionicons name="alert-circle" size={26} color="#B42318" />;
 }
 
 function FeedRow({
@@ -460,13 +385,13 @@ const styles = StyleSheet.create({
   },
   actionRowWrap: { flexWrap: "wrap" },
   actionTile: {
-    width: 132,
-    minHeight: 108,
+    width: 144,
+    minHeight: 124,
     backgroundColor: "#FFFFFF",
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 12,
     paddingHorizontal: 8,
     shadowColor: "#1A2B4C",
     shadowOpacity: 0.08,
@@ -497,7 +422,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D5DEE7",
-    borderRadius: 4,
+    borderRadius: 12,
     overflow: "hidden",
   },
   feedRow: {
@@ -528,7 +453,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D5DEE7",
-    borderRadius: 4,
+    borderRadius: 12,
     padding: 18,
     gap: 14,
   },

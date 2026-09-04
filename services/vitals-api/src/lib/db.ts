@@ -1,5 +1,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 import type {
+  AccountStatus,
+  CareRecipientFormResponse,
   CareRecipientRegistration,
   CareTeamPerson,
   BillingBoardResponse,
@@ -28,6 +30,7 @@ import type {
   SosStatus,
   SubscriptionStatus,
   UpdateDirectoryUserRequest,
+  UpdateHealthVisitLogRequest,
   UpdateInvoiceRequest,
   UpdateScheduleRequest,
   UpdateSosRequest,
@@ -40,7 +43,8 @@ import type {
   WorkerSummary,
   DirectoryUser,
 } from "@daya/shared";
-import { USER_ROLES, monthlyFeeForPlan, currentPeriodLabel } from "@daya/shared";
+import { USER_ROLES, gstSplit, monthlyFeeForPlan, currentPeriodLabel } from "@daya/shared";
+import { centreDateStamp, centreNowWallClock } from "./timezone";
 import { randomUUID } from "node:crypto";
 import { DuplicateKeyError, isDuplicateKeyError, pool } from "./mysql";
 import { HttpError } from "./http";
@@ -55,6 +59,8 @@ interface UserRow extends RowDataPacket {
   phone_number: string;
   password_hash?: string | null;
   role: UserRole;
+  account_status?: AccountStatus | null;
+  max_daily_visits?: number | null;
   device_tokens: DeviceToken[] | string;
   created_at: Date | string;
 }
@@ -64,6 +70,9 @@ interface CustomerRow extends RowDataPacket {
   user_id: string;
   address_durgapur: string;
   plan: string | null;
+  landmark?: string | null;
+  date_of_birth?: Date | string | null;
+  gender?: string | null;
   emergency_contacts: EmergencyContact[] | string;
   medical_history: MedicalHistory | string | null;
   subscription_status: SubscriptionStatus;
@@ -131,6 +140,8 @@ function mapUser(row: UserRow): User {
     email: row.email,
     phone_number: row.phone_number,
     role: row.role,
+    account_status: row.account_status === "BLOCKED" ? "BLOCKED" : "ACTIVE",
+    max_daily_visits: Number(row.max_daily_visits ?? 8) || 8,
     device_tokens: parseJson(row.device_tokens, []),
     created_at: iso(row.created_at),
   };
@@ -231,6 +242,9 @@ export async function loginUser(username: string, password: string): Promise<Log
       hash: await hashPassword(password),
       userId: user.user_id,
     });
+  }
+  if (user.account_status === "BLOCKED") {
+    throw new HttpError(403, "This account is blocked. Ask the centre to unblock it.");
   }
   return {
     token: user.cognito_sub.startsWith("demo:") ? user.cognito_sub : `demo:${user.username ?? username.trim()}`,
@@ -389,6 +403,43 @@ export async function putHealthVisitLog(log: HealthVisitLog): Promise<void> {
     }
     throw error;
   }
+}
+
+export async function updateHealthVisitLog(
+  logId: string,
+  actor: User,
+  body: UpdateHealthVisitLogRequest,
+): Promise<HomeVisitSummary> {
+  const visit = await getVisitSummary(logId);
+  if (actor.role === "WORKER" && visit.log.worker_id !== actor.user_id) {
+    throw new HttpError(403, "Only the Care Giver who recorded this visit can edit it.");
+  }
+  if (actor.role !== "ADMIN" && actor.role !== "WORKER") {
+    throw new HttpError(403, "Only Admin or the Care Giver can edit a saved visit.");
+  }
+  if (body.vitals_payload) {
+    visit.log.vitals_payload = body.vitals_payload;
+  }
+  if (body.qualitative_observations) {
+    visit.log.qualitative_observations = body.qualitative_observations;
+  }
+  if (body.visit_photo_s3_url !== undefined) {
+    visit.log.visit_photo_s3_url = body.visit_photo_s3_url || undefined;
+  }
+  await pool.query(
+    `UPDATE health_visit_logs SET
+       vitals_payload = CAST(:vitals_payload AS JSON),
+       qualitative_observations = CAST(:qualitative_observations AS JSON),
+       visit_photo_s3_url = :visit_photo_s3_url
+     WHERE log_id = :log_id`,
+    {
+      log_id: logId,
+      vitals_payload: JSON.stringify(visit.log.vitals_payload),
+      qualitative_observations: JSON.stringify(visit.log.qualitative_observations),
+      visit_photo_s3_url: visit.log.visit_photo_s3_url ?? null,
+    },
+  );
+  return getVisitSummary(logId);
 }
 
 export async function listRecentVisitLogs(limit = 80): Promise<HealthVisitLog[]> {
@@ -688,10 +739,38 @@ export async function listCareTeam(user: User, customers: CustomerSummary[]): Pr
 }
 
 export async function listWorkers(): Promise<WorkerSummary[]> {
-  const [rows] = await pool.query<(RowDataPacket & { user_id: string; full_name: string })[]>(
-    "SELECT user_id, full_name FROM users WHERE role = 'WORKER' ORDER BY full_name",
+  const [rows] = await pool.query<(RowDataPacket & { user_id: string; full_name: string; max_daily_visits?: number })[]>(
+    "SELECT user_id, full_name, max_daily_visits FROM users WHERE role = 'WORKER' AND account_status = 'ACTIVE' ORDER BY full_name",
   );
-  return rows.map((row) => ({ user_id: row.user_id, name: row.full_name }));
+  return rows.map((row) => ({
+    user_id: row.user_id,
+    name: row.full_name,
+    max_daily_visits: Number(row.max_daily_visits ?? 8) || 8,
+  }));
+}
+
+async function cancelFutureSchedulesForUser(userId: string) {
+  const now = centreNowWallClock();
+  await pool.query(
+    `UPDATE visit_schedules SET status = 'CANCELLED'
+     WHERE status = 'SCHEDULED' AND scheduled_for >= :now
+       AND (worker_id = :userId OR customer_id IN (
+         SELECT customer_id FROM customer_profiles WHERE user_id = :userId
+       ))`,
+    { now, userId },
+  );
+}
+
+export async function countWorkerVisitsOnDate(workerId: string, date: string, ignoreId?: string) {
+  const { start, end } = dayBounds(date);
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS n FROM visit_schedules
+     WHERE worker_id = :workerId AND status = 'SCHEDULED'
+       AND scheduled_for BETWEEN :start AND :end
+       ${ignoreId ? "AND schedule_id <> :ignoreId" : ""}`,
+    { workerId, start, end, ignoreId },
+  );
+  return Number(rows[0]?.n ?? 0);
 }
 
 interface DirectoryUserRow extends UserRow {
@@ -707,6 +786,8 @@ function toDirectoryUser(row: DirectoryUserRow): DirectoryUser {
     email: user.email,
     phone_number: user.phone_number,
     role: user.role,
+    account_status: user.account_status,
+    max_daily_visits: user.max_daily_visits,
     created_at: user.created_at,
     address: row.address ?? undefined,
   };
@@ -863,12 +944,28 @@ export async function updateDirectoryUser(
   }
   await assertPhoneAvailable(phone, userId);
   const nextHash = body.password?.trim() ? (await hashForCreate(body.password)).hash : undefined;
+  const accountStatus: AccountStatus =
+    body.account_status === "BLOCKED" || body.account_status === "ACTIVE"
+      ? body.account_status
+      : existing.account_status;
+  if (accountStatus === "BLOCKED" && existing.role === "ADMIN" && (await countAdmins()) <= 1) {
+    throw new HttpError(400, "The last Admin account cannot be blocked.");
+  }
+  if (actorId && userId === actorId && accountStatus === "BLOCKED") {
+    throw new HttpError(400, "You cannot block your own account.");
+  }
+  const maxDaily =
+    body.max_daily_visits && body.max_daily_visits > 0
+      ? Math.min(Math.round(body.max_daily_visits), 24)
+      : existing.max_daily_visits;
   await pool.query(
     `UPDATE users SET
        full_name = :full_name,
        email = :email,
        phone_number = :phone_number,
-       role = :role
+       role = :role,
+       account_status = :account_status,
+       max_daily_visits = :max_daily_visits
        ${nextHash ? ", password_hash = :password_hash" : ""}
      WHERE user_id = :user_id`,
     {
@@ -877,9 +974,14 @@ export async function updateDirectoryUser(
       email,
       phone_number: phone,
       role,
+      account_status: accountStatus,
+      max_daily_visits: maxDaily,
       password_hash: nextHash,
     },
   );
+  if (accountStatus === "BLOCKED") {
+    await cancelFutureSchedulesForUser(userId);
+  }
   const customerId = await getCustomerIdForUser(userId);
   if (role === "CUSTOMER" && body.address?.trim()) {
     if (customerId) {
@@ -906,10 +1008,22 @@ export async function deleteDirectoryUser(userId: string, actorId?: string): Pro
     throw new HttpError(400, "The last Admin account cannot be deleted.");
   }
 
+  const customerId = await getCustomerIdForUser(userId);
+  const [history] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS n FROM health_visit_logs
+     WHERE worker_id = :userId OR customer_id = :customerId`,
+    { userId, customerId: customerId ?? "" },
+  );
+  if (Number(history[0]?.n ?? 0) > 0) {
+    throw new HttpError(
+      409,
+      "This person has visit history. Block the account instead so records stay.",
+    );
+  }
+
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    const customerId = await getCustomerIdForUser(userId);
     if (customerId) {
       await connection.query("DELETE FROM user_notifications WHERE customer_id = :customerId", { customerId });
       await connection.query("DELETE FROM membership_invoices WHERE customer_id = :customerId", { customerId });
@@ -1185,6 +1299,132 @@ export async function createCareRecipient(
   }
 }
 
+function emptyRegistration(): CareRecipientRegistration {
+  return {
+    office: { plan: "Enhanced", recipient_type: "INDIVIDUAL", payment_mode: "UPI" },
+    recipient: { full_name: "", mobile: "", address: "" },
+    emergency: { primary: { name: "", relationship: "", phone: "" }, approach: "COORDINATE" },
+    medical: { conditions: [] },
+    healthcare: {},
+    family_updates: { create_login: false },
+    consents: { payment_acknowledged: true, recipient_declared: true, documents: [] },
+  };
+}
+
+export async function getCareRecipientForm(customerId: string): Promise<CareRecipientFormResponse> {
+  const [rows] = await pool.query<(CustomerRow & { name: string; email: string; phone_number: string; registration_payload?: CareRecipientRegistration | string | null })[]>(
+    `SELECT c.*, u.full_name AS name, u.email, u.phone_number
+     FROM customer_profiles c
+     JOIN users u ON u.user_id = c.user_id
+     WHERE c.customer_id = :customerId
+     LIMIT 1`,
+    { customerId },
+  );
+  if (!rows[0]) {
+    throw new HttpError(404, "Customer profile not found.");
+  }
+  const row = rows[0];
+  const stored = parseJson<CareRecipientRegistration | null>(row.registration_payload ?? null, null);
+  const registration = stored?.recipient?.full_name ? stored : emptyRegistration();
+  registration.office = { ...registration.office, plan: row.plan ?? registration.office.plan };
+  registration.recipient = {
+    ...registration.recipient,
+    full_name: row.name,
+    mobile: row.phone_number,
+    email: row.email,
+    address: row.address_durgapur,
+    landmark: row.landmark ?? registration.recipient.landmark,
+    date_of_birth: row.date_of_birth ? String(row.date_of_birth).slice(0, 10) : registration.recipient.date_of_birth,
+    gender: row.gender ?? registration.recipient.gender,
+  };
+  return {
+    customer: mapCustomerSummary({
+      customer_id: row.customer_id,
+      user_id: row.user_id,
+      name: row.name,
+      address: row.address_durgapur,
+      plan: row.plan,
+      subscription_status: row.subscription_status,
+    } as CustomerSummaryRow),
+    registration,
+  };
+}
+
+export async function updateCareRecipient(
+  customerId: string,
+  registration: CareRecipientRegistration,
+): Promise<CreateCareRecipientResponse> {
+  const existing = await getCareRecipientForm(customerId);
+  const recipient = registration.recipient;
+  if (!recipient.full_name.trim() || !recipient.mobile.trim() || !recipient.address.trim()) {
+    throw new HttpError(400, "Name, mobile, and address are required.");
+  }
+  if (!registration.office.plan.trim()) {
+    throw new HttpError(400, "Membership plan is required.");
+  }
+  await assertPhoneAvailable(recipient.mobile, existing.customer.user_id);
+  const contacts = [registration.emergency.primary, registration.emergency.secondary].filter(
+    (contact): contact is NonNullable<typeof contact> => Boolean(contact?.name && contact.phone),
+  );
+  await pool.query(
+    `UPDATE users SET full_name = :full_name, phone_number = :phone_number, email = :email
+     WHERE user_id = :userId`,
+    {
+      userId: existing.customer.user_id,
+      full_name: recipient.full_name.trim(),
+      phone_number: recipient.mobile.trim(),
+      email: recipient.email?.trim() || existing.registration.recipient.email || `${existing.customer.user_id}@dayacares.member`,
+    },
+  );
+  await pool.query(
+    `UPDATE customer_profiles SET
+       address_durgapur = :address,
+       plan = :plan,
+       landmark = :landmark,
+       date_of_birth = :date_of_birth,
+       gender = :gender,
+       care_recipient_type = :care_recipient_type,
+       emergency_contacts = CAST(:emergency_contacts AS JSON),
+       medical_history = CAST(:medical_history AS JSON),
+       registration_payload = CAST(:registration_payload AS JSON)
+     WHERE customer_id = :customerId`,
+    {
+      customerId,
+      address: recipient.address.trim(),
+      plan: registration.office.plan,
+      landmark: recipient.landmark?.trim() || null,
+      date_of_birth: dateOrNull(recipient.date_of_birth),
+      gender: recipient.gender || null,
+      care_recipient_type: registration.office.recipient_type,
+      emergency_contacts: JSON.stringify(
+        contacts.map((contact) => ({
+          name: contact.name,
+          relationship: contact.relationship,
+          phone: contact.phone,
+        })),
+      ),
+      medical_history: JSON.stringify({
+        preexisting_conditions: registration.medical.conditions,
+        blood_group: recipient.blood_group,
+        primary_physician: registration.healthcare.primary_doctor,
+        notes: [registration.medical.other_conditions, registration.medical.allergies].filter(Boolean).join(" · "),
+      }),
+      registration_payload: JSON.stringify(registration),
+    },
+  );
+  if (registration.consents.assign_worker_id) {
+    await ensureWorkerAllocated(registration.consents.assign_worker_id, customerId);
+  }
+  return {
+    customer: {
+      ...existing.customer,
+      name: recipient.full_name.trim(),
+      address: recipient.address.trim(),
+      plan: registration.office.plan,
+    },
+  };
+}
+
 interface AllocationRow extends RowDataPacket {
   allocation_id: string;
   worker_id: string;
@@ -1194,6 +1434,7 @@ interface AllocationRow extends RowDataPacket {
   address: string;
   plan: string | null;
   subscription_status: SubscriptionStatus;
+  is_primary?: number;
 }
 
 interface ScheduleRow extends RowDataPacket {
@@ -1220,6 +1461,7 @@ function mapRoutedMember(row: AllocationRow, includeAllocation: boolean): Routed
     allocation_id: includeAllocation ? row.allocation_id : undefined,
     worker_id: includeAllocation ? row.worker_id : undefined,
     worker_name: includeAllocation ? row.worker_name : undefined,
+    is_primary: includeAllocation ? Boolean(row.is_primary) : undefined,
   };
 }
 
@@ -1267,7 +1509,8 @@ export async function getRoutingBoard(): Promise<RoutingBoardResponse> {
        u.full_name AS customer_name,
        c.address_durgapur AS address,
        c.plan,
-       c.subscription_status
+       c.subscription_status,
+       a.is_primary
      FROM worker_allocations a
      JOIN users w ON w.user_id = a.worker_id
      JOIN customer_profiles c ON c.customer_id = a.customer_id
@@ -1292,10 +1535,18 @@ export async function getRoutingBoard(): Promise<RoutingBoardResponse> {
      ORDER BY u.full_name`,
   );
 
+  const today = centreDateStamp();
+  const todayCounts = await Promise.all(
+    workers.map(async (worker) => [worker.user_id, await countWorkerVisitsOnDate(worker.user_id, today)] as const),
+  );
+  const todayByWorker = Object.fromEntries(todayCounts);
+
   return {
     workers: workers.map((worker) => ({
       user_id: worker.user_id,
       name: worker.name,
+      max_daily_visits: worker.max_daily_visits,
+      today_visits: todayByWorker[worker.user_id] ?? 0,
       members: allocationRows
         .filter((row) => row.worker_id === worker.user_id)
         .map((row) => mapRoutedMember(row, true)),
@@ -1311,15 +1562,20 @@ export async function assignWorker(workerId: string, customerId: string) {
   }
   await getCustomer(customerId);
   const allocationId = `alloc-${randomUUID()}`;
+  const [primary] = await pool.query<RowDataPacket[]>(
+    "SELECT 1 AS ok FROM worker_allocations WHERE customer_id = :customerId AND is_primary = 1 LIMIT 1",
+    { customerId },
+  );
   try {
     await pool.query(
-      `INSERT INTO worker_allocations (allocation_id, worker_id, customer_id, allocated_at)
-       VALUES (:allocation_id, :worker_id, :customer_id, :allocated_at)`,
+      `INSERT INTO worker_allocations (allocation_id, worker_id, customer_id, allocated_at, is_primary)
+       VALUES (:allocation_id, :worker_id, :customer_id, :allocated_at, :is_primary)`,
       {
         allocation_id: allocationId,
         worker_id: workerId,
         customer_id: customerId,
         allocated_at: mysqlDate(new Date().toISOString()),
+        is_primary: primary.length ? 0 : 1,
       },
     );
   } catch (error) {
@@ -1340,6 +1596,23 @@ export async function unassignWorker(allocationId: string) {
     throw new HttpError(404, "Assignment was not found.");
   }
   await pool.query("DELETE FROM worker_allocations WHERE allocation_id = :allocationId", { allocationId });
+}
+
+export async function setPrimaryWorker(allocationId: string) {
+  const [rows] = await pool.query<(RowDataPacket & { customer_id: string; worker_id: string })[]>(
+    "SELECT customer_id, worker_id FROM worker_allocations WHERE allocation_id = :allocationId LIMIT 1",
+    { allocationId },
+  );
+  if (!rows[0]) {
+    throw new HttpError(404, "Assignment was not found.");
+  }
+  await pool.query("UPDATE worker_allocations SET is_primary = 0 WHERE customer_id = :customerId", {
+    customerId: rows[0].customer_id,
+  });
+  await pool.query("UPDATE worker_allocations SET is_primary = 1 WHERE allocation_id = :allocationId", {
+    allocationId,
+  });
+  return { allocation_id: allocationId, worker_id: rows[0].worker_id, customer_id: rows[0].customer_id, is_primary: true };
 }
 
 export async function ensureWorkerAllocated(workerId: string, customerId: string) {
@@ -1390,8 +1663,8 @@ export async function listUpcomingSchedules(user: User, limit = 6): Promise<Visi
   if (!customerIds.length && user.role !== "ADMIN" && user.role !== "WORKER") return [];
 
   let sql = `${SCHEDULE_SELECT}
-     WHERE s.status = 'SCHEDULED' AND s.scheduled_for >= NOW()`;
-  const params: Record<string, string> = {};
+     WHERE s.status = 'SCHEDULED' AND s.scheduled_for >= :now`;
+  const params: Record<string, string> = { now: centreNowWallClock() };
 
   if (user.role === "WORKER") {
     sql += " AND s.worker_id = :userId";
@@ -1471,8 +1744,19 @@ export async function createSchedule(body: CreateScheduleRequest): Promise<Visit
     throw new HttpError(400, "Assigned Care Giver was not found.");
   }
   await getCustomer(body.customer_id);
+  if (worker.account_status === "BLOCKED") {
+    throw new HttpError(400, "That Care Giver is blocked and cannot take visits.");
+  }
   const duration = body.duration_minutes && body.duration_minutes > 0 ? Math.min(body.duration_minutes, 240) : 45;
   const visitType: VisitType = body.visit_type ?? "HOME_VISIT";
+  const day = mysqlWallClock(body.scheduled_for).slice(0, 10);
+  const booked = await countWorkerVisitsOnDate(body.worker_id, day);
+  if (booked >= worker.max_daily_visits) {
+    throw new HttpError(
+      409,
+      `${worker.full_name} is at capacity (${worker.max_daily_visits} visits on ${day}).`,
+    );
+  }
   await assertNoOverlap(body.worker_id, body.scheduled_for, duration);
   await ensureWorkerAllocated(body.worker_id, body.customer_id);
 
@@ -1567,6 +1851,9 @@ interface InvoiceRow extends RowDataPacket {
   paid_on: Date | string | null;
   payment_mode: string | null;
   reference: string | null;
+  taxable_inr?: number;
+  gst_rate?: number;
+  gst_inr?: number;
 }
 
 interface SosRow extends RowDataPacket {
@@ -1582,6 +1869,7 @@ interface SosRow extends RowDataPacket {
   assigned_worker_id: string | null;
   assigned_worker_name: string | null;
   created_at: Date | string;
+  family_called_at?: Date | string | null;
   emergency_contacts: EmergencyContact[] | string | null;
 }
 
@@ -1599,6 +1887,9 @@ function mapInvoice(row: InvoiceRow): MembershipInvoice {
     period_label: row.period_label,
     description: row.description,
     amount_inr: Number(row.amount_inr),
+    taxable_inr: Number(row.taxable_inr ?? gstSplit(Number(row.amount_inr)).taxable_inr),
+    gst_rate: Number(row.gst_rate ?? 18),
+    gst_inr: Number(row.gst_inr ?? gstSplit(Number(row.amount_inr)).gst_inr),
     status: row.status,
     due_on: dateOnly(row.due_on),
     paid_on: row.paid_on ? dateOnly(row.paid_on) : undefined,
@@ -1621,14 +1912,15 @@ function mapSos(row: SosRow): SosIncident {
     assigned_worker_id: row.assigned_worker_id ?? undefined,
     assigned_worker_name: row.assigned_worker_name ?? undefined,
     created_at: iso(row.created_at),
+    family_called_at: row.family_called_at ? iso(row.family_called_at) : undefined,
     emergency_contacts: parseJson(row.emergency_contacts, []),
   };
 }
 
 const INVOICE_SELECT = `SELECT
        i.invoice_id, i.customer_id, u.full_name AS customer_name, c.plan,
-       i.period_label, i.description, i.amount_inr, i.status, i.due_on, i.paid_on,
-       i.payment_mode, i.reference
+       i.period_label, i.description, i.amount_inr, i.taxable_inr, i.gst_rate, i.gst_inr,
+       i.status, i.due_on, i.paid_on, i.payment_mode, i.reference
      FROM membership_invoices i
      JOIN customer_profiles c ON c.customer_id = i.customer_id
      JOIN users u ON u.user_id = c.user_id`;
@@ -1636,7 +1928,7 @@ const INVOICE_SELECT = `SELECT
 const SOS_SELECT = `SELECT
        s.incident_id, s.customer_id, u.full_name AS customer_name, c.address_durgapur AS customer_address,
        s.raised_by, s.raised_by_name, s.severity, s.status, s.notes,
-       s.assigned_worker_id, w.full_name AS assigned_worker_name, s.created_at,
+       s.assigned_worker_id, w.full_name AS assigned_worker_name, s.created_at, s.family_called_at,
        c.emergency_contacts
      FROM sos_incidents s
      LEFT JOIN customer_profiles c ON c.customer_id = s.customer_id
@@ -1651,6 +1943,8 @@ export async function getBillingBoard(): Promise<BillingBoardResponse> {
     email: "",
     phone_number: "",
     role: "ADMIN",
+    account_status: "ACTIVE",
+    max_daily_visits: 8,
     device_tokens: [],
     created_at: new Date().toISOString(),
   });
@@ -1687,12 +1981,13 @@ export async function createInvoice(body: CreateInvoiceRequest): Promise<Members
   );
   const period = body.period_label?.trim() || currentPeriodLabel();
   const amount = body.amount_inr && body.amount_inr > 0 ? Math.round(body.amount_inr) : monthlyFeeForPlan(profile[0]?.plan);
+  const tax = gstSplit(amount);
   const invoiceId = `inv-${randomUUID()}`;
   await pool.query(
     `INSERT INTO membership_invoices (
-       invoice_id, customer_id, period_label, description, amount_inr, status, due_on, created_at
+       invoice_id, customer_id, period_label, description, amount_inr, taxable_inr, gst_rate, gst_inr, status, due_on, created_at
      ) VALUES (
-       :invoice_id, :customer_id, :period_label, :description, :amount_inr, 'DUE', :due_on, :created_at
+       :invoice_id, :customer_id, :period_label, :description, :amount_inr, :taxable_inr, :gst_rate, :gst_inr, 'DUE', :due_on, :created_at
      )`,
     {
       invoice_id: invoiceId,
@@ -1700,6 +1995,9 @@ export async function createInvoice(body: CreateInvoiceRequest): Promise<Members
       period_label: period,
       description: body.description?.trim() || `${profile[0]?.plan ?? "Membership"} monthly membership`,
       amount_inr: amount,
+      taxable_inr: tax.taxable_inr,
+      gst_rate: tax.gst_rate,
+      gst_inr: tax.gst_inr,
       due_on: body.due_on?.trim() || `${new Date().toISOString().slice(0, 8)}05`,
       created_at: mysqlDate(new Date().toISOString()),
     },
@@ -1834,7 +2132,8 @@ export async function updateSos(incidentId: string, body: UpdateSosRequest): Pro
     `UPDATE sos_incidents SET
        status = :status,
        assigned_worker_id = :assigned_worker_id,
-       notes = :notes
+       notes = :notes,
+       family_called_at = :family_called_at
      WHERE incident_id = :incident_id`,
     {
       incident_id: incidentId,
@@ -1842,6 +2141,11 @@ export async function updateSos(incidentId: string, body: UpdateSosRequest): Pro
       assigned_worker_id:
         body.assigned_worker_id === null ? null : body.assigned_worker_id ?? existing.assigned_worker_id ?? null,
       notes: body.notes !== undefined ? body.notes.trim() || null : existing.notes ?? null,
+      family_called_at: body.family_called
+        ? mysqlDate(new Date().toISOString())
+        : existing.family_called_at
+          ? mysqlDate(existing.family_called_at)
+          : null,
     },
   );
   const updated = await getSos(incidentId);
