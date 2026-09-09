@@ -14,7 +14,11 @@
     "db:up": "docker compose up -d mysql",
     "db:down": "docker compose down",
     "db:seed": "mysql -udaya -pdaya dayacares < services/vitals-api/sql/02-seed.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/04-scheduling.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/05-billing-sos.sql && mysql -udaya -pdaya dayacares < services/vitals-api/sql/07-notifications.sql",
-    "api:dev": "npm run dev -w @daya/vitals-api"
+    "api:dev": "npm run dev -w @daya/vitals-api",
+    "start": "npm run start -w @daya/vitals-api",
+    "mobile:web": "npm run web -w @daya/mobile -- --port 8081",
+    "demo": "bash scripts/demo.sh",
+    "demo:manual": "bash scripts/print-demo-manual.sh"
   },
   "engines": {
     "node": ">=20"
