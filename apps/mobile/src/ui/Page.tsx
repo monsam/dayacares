@@ -96,7 +96,7 @@ export function CardGrid({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, width: "100%", maxWidth: "100%", overflow: "hidden" },
   scroll: { paddingBottom: 48, alignItems: "center" },
   inner: {
     width: "100%",

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "expo-router";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listNotifications } from "../api/notifications";
 import { ROLE_LABEL, useAuth } from "../auth/AuthContext";
 import { useTheme } from "../theme/ThemeContext";
@@ -22,6 +23,10 @@ export function AppHeader({ showHome = true }: { showHome?: boolean }) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = width < 520;
+  const showSignOutLabel = width >= 520;
   const { session, signOut } = useAuth();
   const atHome = pathname === "/home";
   const atProfile = pathname === "/profile";
@@ -36,9 +41,20 @@ export function AppHeader({ showHome = true }: { showHome?: boolean }) {
   const unread = notifications.data?.unread_count ?? 0;
 
   return (
-    <View style={[styles.bar, { backgroundColor: colors.navy }]}>
+    <View
+      style={[
+        styles.bar,
+        { backgroundColor: colors.navy, paddingTop: Math.max(insets.top, 8) },
+        Platform.OS === "web" ? styles.barWeb : undefined,
+      ]}
+    >
       <View style={styles.left}>
-        <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityLabel="DAYA CARES" />
+        <Image
+          source={logo}
+          style={[styles.logo, compact ? styles.logoCompact : undefined]}
+          resizeMode="contain"
+          accessibilityLabel="DAYA CARES"
+        />
         {showHome ? (
           <Pressable
             onPress={() => router.push("/home")}
@@ -51,8 +67,8 @@ export function AppHeader({ showHome = true }: { showHome?: boolean }) {
         ) : null}
       </View>
       {session ? (
-        <View style={styles.right}>
-          <Text style={styles.role}>{ROLE_LABEL[session.role]}</Text>
+        <View style={[styles.right, compact ? styles.rightCompact : undefined]}>
+          {showSignOutLabel ? <Text style={styles.role} numberOfLines={1}>{ROLE_LABEL[session.role]}</Text> : null}
           <Pressable
             onPress={() => router.push("/notifications")}
             accessibilityRole="button"
@@ -81,8 +97,16 @@ export function AppHeader({ showHome = true }: { showHome?: boolean }) {
             }}
             accessibilityRole="button"
             accessibilityLabel="Sign out"
+            style={[compact ? styles.iconBtn : styles.signOutBtnWide]}
           >
-            <Text style={styles.signOut}>Sign out</Text>
+            {showSignOutLabel ? (
+              <View style={styles.signOutBtn}>
+                <Ionicons name="log-out-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.signOut}>Sign out</Text>
+              </View>
+            ) : (
+              <Ionicons name="log-out-outline" size={22} color="#FFFFFF" />
+            )}
           </Pressable>
         </View>
       ) : null}
@@ -91,14 +115,29 @@ export function AppHeader({ showHome = true }: { showHome?: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  barWeb: {
+    position: "sticky",
+    top: 0,
+  },
   bar: {
     minHeight: 56,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    width: "100%",
+    maxWidth: "100%",
+    alignSelf: "stretch",
+    zIndex: 20,
   },
-  left: { flexDirection: "row", alignItems: "center", gap: 4 },
+  left: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 0,
+    marginRight: 8,
+  },
   iconBtn: {
     width: 36,
     height: 36,
@@ -108,9 +147,23 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
   },
   iconBtnOn: { backgroundColor: "rgba(255,255,255,0.18)" },
-  logo: { width: 188, height: 34 },
-  right: { flexDirection: "row", alignItems: "center", gap: 12 },
-  role: { fontFamily, color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
+  logo: { width: 188, height: 34, maxWidth: "100%" },
+  logoCompact: { width: 108, height: 20 },
+  right: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 0 },
+  rightCompact: { gap: 6 },
+  role: { fontFamily, color: "#FFFFFF", fontSize: 13, fontWeight: "600", maxWidth: 120 },
+  signOutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  signOutBtnWide: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
   avatar: {
     width: 34,
     height: 34,

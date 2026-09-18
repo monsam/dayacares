@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CardGrid, PageShell } from "../../ui/Page";
 import { listCustomers } from "../../api/customers";
 import { downloadOpsPack, getOpsReport } from "../../api/ops";
@@ -67,7 +67,7 @@ export function VisitHistoryScreen() {
     >
 
         {customers.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <View style={styles.chips}>
             {customers.map((customer) => {
               const active = selectedId === customer.customer_id;
               return (
@@ -79,11 +79,16 @@ export function VisitHistoryScreen() {
                     { borderColor: colors.blue, backgroundColor: active ? colors.blue : colors.white },
                   ]}
                 >
-                  <Text style={[styles.chipText, { color: active ? colors.white : colors.blue }]}>{customer.name}</Text>
+                  <Text
+                    style={[styles.chipText, { color: active ? colors.white : colors.blue }]}
+                    numberOfLines={2}
+                  >
+                    {customer.name}
+                  </Text>
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
         ) : null}
 
         {session?.role === "ADMIN" ? (
@@ -226,8 +231,20 @@ function OpsReportCard() {
 
 const styles = StyleSheet.create({
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
-  chips: { gap: 8, paddingVertical: 4 },
-  chip: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  chips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingVertical: 4,
+    width: "100%",
+  },
+  chip: {
+    borderWidth: 2,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    maxWidth: "100%",
+  },
   chipText: { fontFamily, fontSize: 15, fontWeight: "700" },
   kicker: { fontFamily, fontSize: 14, fontWeight: "700", textTransform: "uppercase" },
   latest: { gap: 10 },

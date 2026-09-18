@@ -7,7 +7,10 @@ export default function Html({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
         <ScrollViewStyleReset />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -19,9 +22,18 @@ export default function Html({ children }: PropsWithChildren) {
           dangerouslySetInnerHTML={{
             __html: `
               html, body, #root {
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                overflow-x: hidden;
                 font-family: "Source Sans 3", "Source Sans Pro", Calibri, Arial, sans-serif;
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
+              }
+              #root > div {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: clip;
               }
               input, button, textarea, select {
                 font-family: inherit;

@@ -18,6 +18,7 @@ export function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= 960;
+  const stackFeed = width < 640;
   const { session, ready } = useAuth();
   const queryClient = useQueryClient();
   const [sosState, setSosState] = useState<"idle" | "confirm" | "sending" | "sent" | "error">("idle");
@@ -197,6 +198,7 @@ export function HomeScreen() {
                   <View key={`${item.title}-${index}`}>
                     {index > 0 ? <View style={styles.divider} /> : null}
                     <FeedRow
+                      stacked={stackFeed}
                       icon={<FeedIcon name={item.icon} />}
                       kicker={item.kicker}
                       title={item.title}
@@ -268,6 +270,7 @@ function FeedIcon({ name }: { name: HomeFeedItem["icon"] }) {
 }
 
 function FeedRow({
+  stacked,
   icon,
   kicker,
   title,
@@ -277,6 +280,7 @@ function FeedRow({
   onPrimary,
   onSecondary,
 }: {
+  stacked: boolean;
   icon: ReactNode;
   kicker: string;
   title: string;
@@ -287,14 +291,16 @@ function FeedRow({
   onSecondary?: () => void;
 }) {
   return (
-    <View style={styles.feedRow}>
-      <View style={styles.feedIcon}>{icon}</View>
-      <View style={styles.feedCopy}>
-        <Text style={styles.feedKicker}>{kicker}</Text>
-        <Text style={styles.feedTitle}>{title}</Text>
-        <Text style={styles.feedBody}>{body}</Text>
+    <View style={[styles.feedRow, stacked ? styles.feedRowStacked : undefined]}>
+      <View style={[styles.feedTop, stacked ? styles.feedTopStacked : styles.feedTopInline]}>
+        <View style={styles.feedIcon}>{icon}</View>
+        <View style={styles.feedCopy}>
+          <Text style={styles.feedKicker}>{kicker}</Text>
+          <Text style={styles.feedTitle}>{title}</Text>
+          <Text style={styles.feedBody}>{body}</Text>
+        </View>
       </View>
-      <View style={styles.feedActions}>
+      <View style={[styles.feedActions, stacked ? styles.feedActionsStacked : undefined]}>
         <Button label={primary} size="compact" onPress={onPrimary} />
         {secondary ? (
           <Button label={secondary} size="compact" variant="secondary" onPress={onSecondary ?? onPrimary} />
@@ -305,13 +311,13 @@ function FeedRow({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F3F7FB" },
+  root: { flex: 1, width: "100%", maxWidth: "100%", backgroundColor: "#F3F7FB" },
   scroll: { paddingBottom: 40 },
   hero: {
     backgroundColor: "#E3F0FA",
     paddingTop: 28,
     paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     alignItems: "center",
     overflow: "hidden",
   },
@@ -385,8 +391,8 @@ const styles = StyleSheet.create({
   },
   actionRowWrap: { flexWrap: "wrap" },
   actionTile: {
-    width: 144,
-    minHeight: 124,
+    width: 128,
+    minHeight: 112,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     alignItems: "center",
@@ -411,13 +417,13 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 1180,
     alignSelf: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingTop: 24,
     gap: 20,
   },
   bodyWide: { flexDirection: "row", alignItems: "flex-start" },
   bodyNarrow: { flexDirection: "column" },
-  feed: { flex: 2 },
+  feed: { flex: 2, minWidth: 0, width: "100%" },
   feedCard: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -427,17 +433,35 @@ const styles = StyleSheet.create({
   },
   feedRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 14,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 18,
+  },
+  feedRowStacked: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 12,
+  },
+  feedTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+    minWidth: 0,
+  },
+  feedTopInline: {
+    flex: 1,
+  },
+  feedTopStacked: {
+    width: "100%",
   },
   feedIcon: { width: 36, alignItems: "center" },
   feedCopy: { flex: 1, minWidth: 0 },
   feedKicker: { fontFamily, fontSize: 13, color: "#5B6775", marginBottom: 2 },
   feedTitle: { fontFamily, fontSize: 18, fontWeight: "700", color: "#1A2B4C" },
   feedBody: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775", marginTop: 4 },
-  feedActions: { width: 168, gap: 8 },
+  feedActions: { width: 168, minWidth: 148, gap: 8, flexShrink: 0, alignSelf: "stretch" },
+  feedActionsStacked: { width: "100%" },
   divider: { height: 1, backgroundColor: "#E4EAF1" },
   viewAll: {
     flexDirection: "row",
@@ -449,7 +473,8 @@ const styles = StyleSheet.create({
   viewAllText: { fontFamily, fontSize: 14, fontWeight: "600", color: "#0057B8" },
   sidebar: {
     flex: 1,
-    minWidth: 280,
+    minWidth: 0,
+    width: "100%",
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D5DEE7",
