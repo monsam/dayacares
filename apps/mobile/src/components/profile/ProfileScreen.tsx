@@ -25,7 +25,7 @@ export function ProfileScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { session, ready, updateSession } = useAuth();
+  const { session, ready, updateSession, signOut } = useAuth();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -137,6 +137,15 @@ export function ProfileScreen() {
           }}
         />
       </Card>
+
+      <Button
+        label="Sign out"
+        variant="secondary"
+        onPress={() => {
+          signOut();
+          router.replace("/");
+        }}
+      />
     </PageShell>
   );
 }

@@ -52,13 +52,15 @@ const FEATURES_RIGHT = [
   },
 ];
 
+const ALL_FEATURES = [...FEATURES_LEFT, ...FEATURES_RIGHT];
+
 export function LoginScreen() {
   const { colors, highContrast, toggleHighContrast } = useTheme();
   const { width, height } = useWindowDimensions();
   const { session, signIn } = useAuth();
   const isWide = width >= 980;
   const pagePad = isWide ? 36 : 22;
-  const panelMin = Math.max(560, height - pagePad * 2);
+  const panelMin = isWide ? Math.max(560, height - pagePad * 2) : undefined;
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -132,6 +134,51 @@ export function LoginScreen() {
     </>
   );
 
+  const storeFooter = (mobile?: boolean) => (
+    <View style={[styles.leftFooter, mobile ? styles.mobileFooter : undefined]}>
+      <View style={[styles.storeRow, mobile ? styles.storeRowMobile : undefined]}>
+        <Image
+          source={badgeApple}
+          style={styles.storeBadge}
+          resizeMode="contain"
+          accessibilityLabel="Download on the App Store"
+        />
+        <Image
+          source={badgeAndroid}
+          style={styles.storeBadge}
+          resizeMode="contain"
+          accessibilityLabel="Get it on Google Play"
+        />
+      </View>
+      <Pressable onPress={toggleHighContrast} accessibilityRole="button">
+        <Text style={[styles.contrastText, { color: colors.blue }]}>
+          {highContrast ? "Use standard contrast" : "Use high contrast"}
+        </Text>
+      </Pressable>
+    </View>
+  );
+
+  const loginForm = (
+    <>
+      <Text style={styles.loginTitle}>Sign in to Daya Cares</Text>
+      <Text style={styles.loginSub}>Use the username the centre created for you.</Text>
+      {Platform.OS === "web"
+        ? createElement(
+            "form",
+            {
+              onSubmit: (event: { preventDefault: () => void }) => {
+                event.preventDefault();
+                void onLogin();
+              },
+              autoComplete: "off",
+              style: { display: "flex", flexDirection: "column", gap: 12, width: "100%" },
+            },
+            loginFields,
+          )
+        : loginFields}
+    </>
+  );
+
   if (session) {
     return <Redirect href="/home" />;
   }
@@ -139,78 +186,67 @@ export function LoginScreen() {
   return (
     <View style={styles.root}>
       <WaveBackground />
-      <ScrollView contentContainerStyle={[styles.page, { padding: pagePad }]}>
-        <View style={[styles.panel, isWide ? styles.panelWide : styles.panelNarrow, { minHeight: panelMin }]}>
-          <View style={styles.left}>
+      <ScrollView
+        contentContainerStyle={[styles.page, isWide ? styles.pageWide : styles.pageNarrow, { padding: pagePad }]}
+      >
+        {isWide ? (
+          <View style={[styles.panel, styles.panelWide, panelMin ? { minHeight: panelMin } : undefined]}>
+            <View style={styles.left}>
+              <Image
+                source={logo}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityLabel="DAYA CARES and SOHOJIA logo"
+              />
+              <View style={styles.heroPanel}>
+                <View style={styles.heroBand}>
+                  <View style={styles.featureCol}>
+                    {FEATURES_LEFT.map((feature) => (
+                      <FeatureItem key={feature.title} {...feature} />
+                    ))}
+                  </View>
+                  <Image
+                    source={hero}
+                    style={styles.hero}
+                    resizeMode="contain"
+                    accessibilityLabel="Daya Cares families in Durgapur"
+                  />
+                  <View style={styles.featureCol}>
+                    {FEATURES_RIGHT.map((feature) => (
+                      <FeatureItem key={feature.title} {...feature} />
+                    ))}
+                  </View>
+                </View>
+              </View>
+              {storeFooter()}
+            </View>
+            <View style={styles.right}>{loginForm}</View>
+          </View>
+        ) : (
+          <View style={[styles.panel, styles.panelNarrow]}>
             <Image
               source={logo}
-              style={styles.logo}
+              style={styles.logoMobile}
               resizeMode="contain"
               accessibilityLabel="DAYA CARES and SOHOJIA logo"
             />
-            <View style={[styles.heroPanel, !isWide && styles.heroPanelNarrow]}>
-              <View style={[styles.heroBand, !isWide && styles.heroBandNarrow]}>
-                <View style={styles.featureCol}>
-                  {FEATURES_LEFT.map((feature) => (
-                    <FeatureItem key={feature.title} {...feature} />
-                  ))}
-                </View>
-                <Image
-                  source={hero}
-                  style={[styles.hero, !isWide && styles.heroNarrow]}
-                  resizeMode="contain"
-                  accessibilityLabel="Daya Cares families in Durgapur"
-                />
-                <View style={styles.featureCol}>
-                  {FEATURES_RIGHT.map((feature) => (
-                    <FeatureItem key={feature.title} {...feature} />
-                  ))}
-                </View>
+            <View style={styles.mobileSignIn}>{loginForm}</View>
+            <View style={styles.mobileMarketing}>
+              <Image
+                source={hero}
+                style={styles.heroMobile}
+                resizeMode="contain"
+                accessibilityLabel="Daya Cares families in Durgapur"
+              />
+              <View style={styles.mobileFeatureList}>
+                {ALL_FEATURES.map((feature) => (
+                  <FeatureItem key={feature.title} {...feature} />
+                ))}
               </View>
             </View>
-            <View style={styles.leftFooter}>
-              <View style={styles.storeRow}>
-                <Image
-                  source={badgeApple}
-                  style={styles.storeBadge}
-                  resizeMode="contain"
-                  accessibilityLabel="Download on the App Store"
-                />
-                <Image
-                  source={badgeAndroid}
-                  style={styles.storeBadge}
-                  resizeMode="contain"
-                  accessibilityLabel="Get it on Google Play"
-                />
-              </View>
-              <Pressable onPress={toggleHighContrast} accessibilityRole="button">
-                <Text style={[styles.contrastText, { color: colors.blue }]}>
-                  {highContrast ? "Use standard contrast" : "Use high contrast"}
-                </Text>
-              </Pressable>
-            </View>
+            {storeFooter(true)}
           </View>
-
-          <View style={[styles.right, !isWide && styles.rightNarrow]}>
-            <Text style={styles.loginTitle}>Sign in to Daya Cares</Text>
-            <Text style={styles.loginSub}>Use the username the centre created for you.</Text>
-
-            {Platform.OS === "web"
-              ? createElement(
-                  "form",
-                  {
-                    onSubmit: (event: { preventDefault: () => void }) => {
-                      event.preventDefault();
-                      void onLogin();
-                    },
-                    autoComplete: "off",
-                    style: { display: "flex", flexDirection: "column", gap: 12, width: "100%" },
-                  },
-                  loginFields,
-                )
-              : loginFields}
-          </View>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -267,8 +303,15 @@ const styles = StyleSheet.create({
   waveFour: { width: 520, height: 280, bottom: 40, left: -80, backgroundColor: "rgba(164,214,255,0.18)" },
   page: {
     flexGrow: 1,
-    justifyContent: "center",
     alignItems: "center",
+    width: "100%",
+  },
+  pageWide: {
+    justifyContent: "center",
+  },
+  pageNarrow: {
+    justifyContent: "flex-start",
+    paddingBottom: 24,
   },
   panel: {
     width: "100%",
@@ -298,6 +341,52 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 14,
   },
+  logoMobile: {
+    width: "100%",
+    height: 72,
+    marginTop: 4,
+  },
+  mobileSignIn: {
+    width: "100%",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 20,
+    gap: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  mobileMarketing: {
+    width: "100%",
+    backgroundColor: "#E8F3FA",
+    borderTopWidth: 1,
+    borderTopColor: "#D5E3F0",
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    gap: 16,
+  },
+  heroMobile: {
+    width: "100%",
+    height: 180,
+    alignSelf: "center",
+  },
+  mobileFeatureList: {
+    gap: 16,
+  },
+  mobileFooter: {
+    marginTop: 0,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 18,
+    borderTopWidth: 1,
+    borderTopColor: "#E4EAF1",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storeRowMobile: {
+    justifyContent: "center",
+    flexWrap: "wrap",
+  },
   heroPanel: {
     flexGrow: 1,
     backgroundColor: "#E8F3FA",
@@ -305,10 +394,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 24,
     justifyContent: "center",
-  },
-  heroPanelNarrow: {
-    minHeight: 0,
-    paddingVertical: 16,
   },
   logo: {
     width: "100%",
@@ -320,10 +405,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 20,
   },
-  heroBandNarrow: {
-    flexDirection: "column",
-    alignItems: "stretch",
-  },
   featureCol: {
     flex: 1,
     gap: 28,
@@ -332,11 +413,6 @@ const styles = StyleSheet.create({
   hero: {
     width: 340,
     height: 280,
-  },
-  heroNarrow: {
-    width: "100%",
-    height: 220,
-    alignSelf: "center",
   },
   featureItem: {
     flexDirection: "row",
@@ -377,12 +453,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderLeftColor: "#E4EAF1",
     justifyContent: "center",
-  },
-  rightNarrow: {
-    width: "100%",
-    borderLeftWidth: 0,
-    borderTopWidth: 1,
-    borderTopColor: "#E4EAF1",
   },
   loginTitle: { fontFamily, fontSize: 22, lineHeight: 28, color: "#1A2B4C", fontWeight: "700" },
   loginSub: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775", marginBottom: 8 },
