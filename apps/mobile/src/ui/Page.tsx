@@ -37,6 +37,8 @@ export function PageHeading({
 }) {
   const { colors } = useTheme();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const compact = width < 480;
 
   return (
     <View style={styles.heading}>
@@ -45,7 +47,7 @@ export function PageHeading({
           <Text style={[styles.backLink, { color: colors.blue }]}>{backLabel}</Text>
         </Pressable>
       ) : null}
-      <Text style={[styles.pageTitle, { color: colors.ink }]}>{title}</Text>
+      <Text style={[styles.pageTitle, compact && styles.pageTitleCompact, { color: colors.ink }]}>{title}</Text>
       {lead ? <View style={styles.lead}>{lead}</View> : null}
     </View>
   );
@@ -81,13 +83,16 @@ export function PageShell({
 export function CardGrid({ children }: { children: ReactNode }) {
   const wide = useWidePage();
   const { width } = useWindowDimensions();
-  const content = Math.min(width, PAGE_MAX) - PAGE_GUTTER * 2;
-  const column = wide ? (content - 16) / 2 : content;
+  const innerWidth = Math.min(width, PAGE_MAX) - PAGE_GUTTER * 2;
+  const columnWide = (innerWidth - 16) / 2;
 
   return (
     <View style={styles.grid}>
       {Children.toArray(children).map((child, index) => (
-        <View key={index} style={{ width: column, alignSelf: "stretch" }}>
+        <View
+          key={index}
+          style={[styles.gridCell, wide ? { width: columnWide } : styles.gridCellNarrow]}
+        >
           {child}
         </View>
       ))}
@@ -97,10 +102,12 @@ export function CardGrid({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, width: "100%", maxWidth: "100%", overflow: "hidden" },
-  scroll: { paddingBottom: 48, alignItems: "center" },
+  scroll: { paddingBottom: 48, alignItems: "stretch", width: "100%", maxWidth: "100%" },
   inner: {
     width: "100%",
     maxWidth: PAGE_MAX,
+    minWidth: 0,
+    alignSelf: "center",
     paddingHorizontal: PAGE_GUTTER,
     paddingTop: 28,
     gap: 16,
@@ -109,10 +116,23 @@ const styles = StyleSheet.create({
   backRow: { alignSelf: "flex-start", paddingVertical: 2 },
   backLink: { fontFamily, fontSize: 16, fontWeight: "600" },
   pageTitle: { fontFamily, fontSize: 32, fontWeight: "700", letterSpacing: -0.4 },
+  pageTitleCompact: { fontSize: 26, lineHeight: 32 },
   lead: { maxWidth: 720 },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 16,
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+  },
+  gridCell: {
+    minWidth: 0,
+    alignSelf: "stretch",
+  },
+  gridCellNarrow: {
+    width: "100%",
+    maxWidth: "100%",
+    flexBasis: "100%",
   },
 });

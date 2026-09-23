@@ -18,7 +18,7 @@ export function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= 960;
-  const stackFeed = width < 640;
+  const stackFeed = !isWide;
   const { session, ready } = useAuth();
   const queryClient = useQueryClient();
   const [sosState, setSosState] = useState<"idle" | "confirm" | "sending" | "sent" | "error">("idle");
@@ -187,7 +187,7 @@ export function HomeScreen() {
         </View>
 
         <View style={[styles.body, isWide ? styles.bodyWide : styles.bodyNarrow]}>
-          <View style={styles.feed}>
+          <View style={[styles.feed, isWide ? styles.feedWide : styles.feedNarrow]}>
             <View style={styles.feedCard}>
               {summary.isLoading ? (
                 <Text style={styles.empty}>{LOADING_COPY}</Text>
@@ -234,7 +234,7 @@ export function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.sidebar}>
+          <View style={[styles.sidebar, isWide ? styles.sidebarWide : styles.sidebarNarrow]}>
             <Text style={styles.sidebarTitle}>{home.sidebarTitle}</Text>
             {sidebar.map((person) => (
               <View key={person.user_id} style={styles.person}>
@@ -423,13 +423,15 @@ const styles = StyleSheet.create({
   },
   bodyWide: { flexDirection: "row", alignItems: "flex-start" },
   bodyNarrow: { flexDirection: "column" },
-  feed: { flex: 2, minWidth: 0, width: "100%" },
+  feed: { minWidth: 0, width: "100%" },
+  feedWide: { flex: 2 },
+  feedNarrow: { flexGrow: 0, flexShrink: 0 },
   feedCard: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D5DEE7",
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: "visible",
   },
   feedRow: {
     flexDirection: "row",
@@ -442,6 +444,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "stretch",
     gap: 12,
+    paddingBottom: 4,
   },
   feedTop: {
     flexDirection: "row",
@@ -461,7 +464,7 @@ const styles = StyleSheet.create({
   feedTitle: { fontFamily, fontSize: 18, fontWeight: "700", color: "#1A2B4C" },
   feedBody: { fontFamily, fontSize: 14, lineHeight: 20, color: "#5B6775", marginTop: 4 },
   feedActions: { width: 168, minWidth: 148, gap: 8, flexShrink: 0, alignSelf: "stretch" },
-  feedActionsStacked: { width: "100%" },
+  feedActionsStacked: { width: "100%", maxWidth: "100%" },
   divider: { height: 1, backgroundColor: "#E4EAF1" },
   viewAll: {
     flexDirection: "row",
@@ -472,7 +475,6 @@ const styles = StyleSheet.create({
   },
   viewAllText: { fontFamily, fontSize: 14, fontWeight: "600", color: "#0057B8" },
   sidebar: {
-    flex: 1,
     minWidth: 0,
     width: "100%",
     backgroundColor: "#FFFFFF",
@@ -482,6 +484,8 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 14,
   },
+  sidebarWide: { flex: 1 },
+  sidebarNarrow: { flexGrow: 0, flexShrink: 0, marginTop: 4 },
   sidebarTitle: { fontFamily, fontSize: 16, fontWeight: "700", color: "#1A2B4C" },
   person: { flexDirection: "row", alignItems: "center", gap: 10 },
   personAvatar: {

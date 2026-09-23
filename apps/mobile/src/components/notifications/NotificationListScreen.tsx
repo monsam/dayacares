@@ -63,12 +63,15 @@ export function NotificationListScreen() {
             onPress={() => router.push(`/notifications/${item.notification_id}`)}
             accessibilityRole="button"
             accessibilityLabel={item.title}
+            style={styles.pressable}
           >
             <Card style={styles.card}>
               <Text style={[styles.kicker, { color: item.read_at ? colors.inkMuted : colors.danger }]}>
                 {item.read_at ? "Read" : "Unread"} · {kindLabel(item.kind)} · {formatVisitTime(item.created_at)}
               </Text>
-              <Text style={[styles.title, { color: colors.ink }]}>{item.title}</Text>
+              <Text style={[styles.title, { color: colors.ink }]} numberOfLines={3}>
+                {item.title}
+              </Text>
               <Text style={[styles.meta, { color: colors.inkMuted }]} numberOfLines={3}>
                 {item.body}
               </Text>
@@ -82,6 +85,7 @@ export function NotificationListScreen() {
 
 const styles = StyleSheet.create({
   lead: { fontFamily, fontSize: type.body, lineHeight: 26 },
+  pressable: { width: "100%", maxWidth: "100%", minWidth: 0 },
   card: { gap: 8 },
   kicker: { fontFamily, fontSize: 14, fontWeight: "700" },
   title: { fontFamily, fontSize: 20, fontWeight: "800" },

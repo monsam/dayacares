@@ -21,6 +21,9 @@ export default function Html({ children }: PropsWithChildren) {
         <style
           dangerouslySetInnerHTML={{
             __html: `
+              *, *::before, *::after {
+                box-sizing: border-box;
+              }
               html, body, #root {
                 width: 100%;
                 max-width: 100%;
