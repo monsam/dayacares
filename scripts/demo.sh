@@ -12,9 +12,11 @@ PIDS=()
 cleanup() {
   echo ""
   echo "Stopping Daya Cares demo..."
-  for pid in "${PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true
-  done
+  if ((${#PIDS[@]} > 0)); then
+    for pid in "${PIDS[@]}"; do
+      kill "$pid" 2>/dev/null || true
+    done
+  fi
   wait 2>/dev/null || true
   echo "Demo stopped."
 }
@@ -28,8 +30,35 @@ need_cmd() {
   fi
 }
 
+strip_crlf() {
+  printf '%s' "$1" | tr -d '\r'
+}
+
 wait_for_mysql() {
-  echo "Waiting for MySQL on 127.0.0.1:3306..."
+  local mysql_host mysql_port mysql_user mysql_password mysql_database
+  mysql_host="$(strip_crlf "${MYSQL_HOST:-127.0.0.1}")"
+  mysql_port="$(strip_crlf "${MYSQL_PORT:-3306}")"
+  mysql_user="$(strip_crlf "${MYSQL_USER:-daya}")"
+  mysql_password="$(strip_crlf "${MYSQL_PASSWORD:-daya}")"
+  mysql_database="$(strip_crlf "${MYSQL_DATABASE:-dayacares}")"
+
+  echo "Waiting for MySQL on ${mysql_host}:${mysql_port}..."
+
+  if command -v mysql >/dev/null 2>&1; then
+    for _ in $(seq 1 45); do
+      if mysql -h"$mysql_host" -P"$mysql_port" -u"$mysql_user" -p"$mysql_password" -e "SELECT 1" "$mysql_database" >/dev/null 2>&1; then
+        return 0
+      fi
+      sleep 2
+    done
+  fi
+
+  export DEMO_MYSQL_HOST="$mysql_host"
+  export DEMO_MYSQL_PORT="$mysql_port"
+  export DEMO_MYSQL_USER="$mysql_user"
+  export DEMO_MYSQL_PASSWORD="$mysql_password"
+  export DEMO_MYSQL_DATABASE="$mysql_database"
+
   node <<'NODE'
 const mysql = require("mysql2/promise");
 
@@ -37,11 +66,11 @@ const mysql = require("mysql2/promise");
   for (let attempt = 1; attempt <= 45; attempt++) {
     try {
       const connection = await mysql.createConnection({
-        host: process.env.MYSQL_HOST ?? "127.0.0.1",
-        port: Number(process.env.MYSQL_PORT ?? 3306),
-        user: process.env.MYSQL_USER ?? "daya",
-        password: process.env.MYSQL_PASSWORD ?? "daya",
-        database: process.env.MYSQL_DATABASE ?? "dayacares",
+        host: process.env.DEMO_MYSQL_HOST ?? "127.0.0.1",
+        port: Number(process.env.DEMO_MYSQL_PORT ?? 3306),
+        user: process.env.DEMO_MYSQL_USER ?? "daya",
+        password: process.env.DEMO_MYSQL_PASSWORD ?? "daya",
+        database: process.env.DEMO_MYSQL_DATABASE ?? "dayacares",
       });
       await connection.query("SELECT 1");
       await connection.end();
@@ -148,13 +177,19 @@ need_cmd curl
 
 if [ ! -f .env ]; then
   echo "Creating .env from .env.example..."
-  cp .env.example .env
+  tr -d '\r' < .env.example > .env
 fi
 
 # shellcheck disable=SC1091
 set -a
+# shellcheck disable=SC1091
 source .env
 set +a
+export MYSQL_HOST="$(strip_crlf "${MYSQL_HOST:-127.0.0.1}")"
+export MYSQL_PORT="$(strip_crlf "${MYSQL_PORT:-3306}")"
+export MYSQL_USER="$(strip_crlf "${MYSQL_USER:-daya}")"
+export MYSQL_PASSWORD="$(strip_crlf "${MYSQL_PASSWORD:-daya}")"
+export MYSQL_DATABASE="$(strip_crlf "${MYSQL_DATABASE:-dayacares}")"
 
 if [ ! -d node_modules ] || [ ! -d node_modules/expo ]; then
   echo "Installing dependencies..."

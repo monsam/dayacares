@@ -125,7 +125,7 @@ export function VisitHistoryScreen() {
             <Text style={[styles.kicker, { color: colors.blue }]}>Latest vitals</Text>
             <Text style={[styles.latestName, { color: colors.ink }]}>{latest.customer_name}</Text>
             <Text style={[styles.latestLine, { color: colors.ink }]}>{formatVitalsLine(latest.log.vitals_payload)}</Text>
-            <Text style={[styles.meta, { color: colors.inkMuted }]}>
+            <Text style={[styles.wrapText, styles.meta, { color: colors.inkMuted }]}>
               {formatVisitWhen(latest.log.visit_timestamp)} · {latest.worker_name} · {latest.address}
             </Text>
             {visitAlert(latest).flags.length ? (
@@ -161,7 +161,9 @@ export function VisitHistoryScreen() {
             return (
               <Card key={visit.log.log_id} style={styles.historyCard}>
                 <Text style={[styles.historyName, { color: colors.ink }]}>{visit.customer_name}</Text>
-                <Text style={[styles.historyVitals, { color: colors.ink }]}>{formatVitalsLine(visit.log.vitals_payload)}</Text>
+                <Text style={[styles.wrapText, styles.historyVitals, { color: colors.ink }]}>
+                  {formatVitalsLine(visit.log.vitals_payload)}
+                </Text>
                 <Text style={[styles.meta, { color: colors.inkMuted }]}>
                   {formatVisitWhen(visit.log.visit_timestamp)} · {visit.worker_name}
                 </Text>
@@ -247,7 +249,8 @@ const styles = StyleSheet.create({
   },
   chipText: { fontFamily, fontSize: 15, fontWeight: "700" },
   kicker: { fontFamily, fontSize: 14, fontWeight: "700", textTransform: "uppercase" },
-  latest: { gap: 10 },
+  latest: { gap: 10, width: "100%", maxWidth: "100%", minWidth: 0 },
+  wrapText: { flexShrink: 1 },
   latestName: { fontFamily, fontSize: 24, fontWeight: "800" },
   latestLine: { fontFamily, fontSize: 22, fontWeight: "700" },
   section: { fontFamily, fontSize: 20, fontWeight: "800" },
